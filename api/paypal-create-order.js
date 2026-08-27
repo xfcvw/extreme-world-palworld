@@ -1,4 +1,4 @@
-import { paypalConfigured, paypalRequest } from './lib/paypal.js';
+import { paypalConfigured, paypalRequest } from '../lib/paypal.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const PUBLISHABLE = process.env.SUPABASE_PUBLISHABLE_KEY;

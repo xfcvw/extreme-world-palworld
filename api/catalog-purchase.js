@@ -1,4 +1,4 @@
-import { applyCatalogOverrides, getBaseGameCatalog } from './lib/game-catalog.js';
+import { applyCatalogOverrides, getBaseGameCatalog } from '../lib/game-catalog.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const PUBLISHABLE = process.env.SUPABASE_PUBLISHABLE_KEY;

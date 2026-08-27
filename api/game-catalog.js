@@ -1,4 +1,4 @@
-import { applyCatalogOverrides, catalogSummary, getBaseGameCatalog } from './lib/game-catalog.js';
+import { applyCatalogOverrides, catalogSummary, getBaseGameCatalog } from '../lib/game-catalog.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
