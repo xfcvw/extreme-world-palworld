@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     if (['weapons', 'armor'].includes(item.category)) {
       const requestedTier = String(req.body?.equipmentTier || 'normal').toLowerCase();
       if (!['normal', 'legendary'].includes(requestedTier)) return json(res, 400, { error: 'Escolha a qualidade Normal ou Lendária.' });
-      const victoryCoins = requestedTier === 'legendary' ? 5 : item.category === 'weapons' ? 2 : 3;
+      const victoryCoins = requestedTier === 'legendary' ? (item.category === 'weapons' ? 6 : 5) : item.category === 'weapons' ? 2 : 3;
       selectedItem = {
         ...item,
         name: `${item.name} — ${requestedTier === 'legendary' ? 'Lendária' : 'Normal'}`,
