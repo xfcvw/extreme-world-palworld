@@ -21,7 +21,7 @@ async function serviceFetch(path, options = {}) {
 }
 
 async function loadOverrides() {
-  return serviceFetch('catalog_price_overrides?select=catalog_key,victory_coins_price,active');
+  return serviceFetch('catalog_price_overrides?select=catalog_key,victory_coins_price,equipment_normal_price,equipment_legendary_price,active');
 }
 
 function cleanRequestText(value, maxLength) {
@@ -75,7 +75,8 @@ export default async function handler(req, res) {
     if (['weapons', 'armor'].includes(item.category)) {
       const requestedTier = String(req.body?.equipmentTier || 'normal').toLowerCase();
       if (!['normal', 'legendary'].includes(requestedTier)) return json(res, 400, { error: 'Escolha a qualidade Normal ou Lendária.' });
-      const victoryCoins = requestedTier === 'legendary' ? (item.category === 'weapons' ? 6 : 5) : item.category === 'weapons' ? 2 : 3;
+      const victoryCoins = Number(item.metadata?.equipment_prices?.[requestedTier]);
+      if (!Number.isInteger(victoryCoins) || victoryCoins < 1) return json(res, 500, { error: 'O preço dessa qualidade ainda não foi configurado.' });
       selectedItem = {
         ...item,
         name: `${item.name} — ${requestedTier === 'legendary' ? 'Lendária' : 'Normal'}`,
