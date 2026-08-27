@@ -38,7 +38,7 @@ async function getAuthenticatedUser(accessToken){
 }
 
 async function updatePortalRole(userId,role){
-  const result=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId) }&role_source=neq.manual`.replace('${encodeURIComponent(userId) }','${encodeURIComponent(userId)}'),{
+  const result=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&role_source=neq.manual`,{
     method:'PATCH',
     headers:{
       apikey:SUPABASE_SERVICE_ROLE_KEY,
