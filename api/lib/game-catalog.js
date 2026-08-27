@@ -138,7 +138,7 @@ export function equipmentTier(item, key) {
 
 export function equipmentPrice(item, category, key) {
   const legendary = equipmentTier(item, key) === 'legendary';
-  if (category === 'weapons') return legendary ? 5 : 2;
+  if (category === 'weapons') return legendary ? 6 : 2;
   return legendary ? 5 : 3;
 }
 
