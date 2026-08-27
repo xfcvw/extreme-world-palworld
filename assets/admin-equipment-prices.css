@@ -1,0 +1,4 @@
+.store-admin-item{grid-template-columns:minmax(180px,1fr) 112px 112px auto auto}
+.store-admin-item input[name="price"],.store-admin-item input[name="legendaryPrice"]{min-width:0;padding:8px 9px;border:1px solid #2b455e;border-radius:8px;background:#0a1520;color:#fff;font:inherit}
+.store-admin-item[data-category="pals"] .legendary-price,.store-admin-item[data-category="resources"] .legendary-price{display:none}
+@media(max-width:700px){.store-admin-item{grid-template-columns:1fr 1fr}.store-admin-item>div{grid-column:1/-1}}
