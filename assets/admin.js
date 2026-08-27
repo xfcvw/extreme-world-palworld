@@ -1,6 +1,7 @@
 import { SITE_ORIGIN, getSharedSession, supabase } from '/assets/auth.js';
 const root=document.querySelector('#admin-root');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const coins=value=>new Intl.NumberFormat('pt-BR').format(Number(value||0));
 const statusLabel=s=>({pending_payment:'Aguardando pagamento',paid:'Pago',awaiting_delivery:'Aguardando entrega',in_delivery:'Em entrega',delivered:'Entregue',cancelled:'Cancelado',refunded:'Reembolsado'}[s]||s);
 const toast=t=>{let el=document.querySelector('#admin-toast');if(!el){el=document.createElement('div');el.id='admin-toast';el.className='toast';document.body.appendChild(el)}el.textContent=t;el.hidden=false;setTimeout(()=>el.hidden=true,2600)};
 const storeCategory=p=>String(p?.category||p?.metadata?.store_category||'').toLowerCase();
@@ -9,7 +10,10 @@ async function setDelivery(id,status){
   const {error}=await supabase.rpc('staff_set_order_delivery_status',{p_order_id:id,p_status:status});
   if(error)return toast(error.message);
   toast(status==='delivered'?'Pedido marcado como entregue.':'Pedido movido para entrega.');
-  await render();
+  await render().catch(error=>{
+  console.error('Falha ao carregar o painel administrativo:',error);
+  root.innerHTML='<div class="admin-panel"><h3>Não foi possível carregar os dados</h3><p>Atualize a página. Se o problema continuar, a equipe pode verificar o erro pelo console do navegador.</p></div>';
+});
 }
 async function updateStoreProduct(key,form){
   const price=Math.round(Number(form.querySelector('[name="price"]').value.replace(',','.')));
