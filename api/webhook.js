@@ -41,13 +41,33 @@ function normalize(order){
 
 export default async function handler(req,res){
   if(req.method!=='POST') return res.status(405).end();
-  if(!SUPABASE_URL||!SERVICE_ROLE||!MP_TOKEN||!MP_SECRET) return res.status(503).end();
+  if(!SUPABASE_URL||!SERVICE_ROLE||!MP_TOKEN||!MP_SECRET){
+    console.error('[mercado-pago-webhook] configuração ausente', {
+      supabase: Boolean(SUPABASE_URL && SERVICE_ROLE),
+      token: Boolean(MP_TOKEN),
+      secret: Boolean(MP_SECRET)
+    });
+    return res.status(503).end();
+  }
 
   const dataId=req.query?.['data.id']||req.body?.data?.id;
-  if(!dataId||!valid(req,dataId)) return res.status(401).end();
+  const type=String(req.query?.type||req.body?.type||'').toLowerCase();
+  if(!dataId){
+    console.warn('[mercado-pago-webhook] notificação sem data.id', { type });
+    return res.status(400).end();
+  }
+  if(!valid(req,dataId)){
+    console.warn('[mercado-pago-webhook] assinatura inválida', {
+      type,
+      dataId: String(dataId).slice(0, 80),
+      hasSignature: Boolean(req.headers['x-signature']),
+      hasRequestId: Boolean(req.headers['x-request-id'])
+    });
+    return res.status(401).end();
+  }
 
   try{
-    const type=String(req.query?.type||req.body?.type||'').toLowerCase();
+    console.info('[mercado-pago-webhook] notificação recebida', { type, dataId: String(dataId).slice(0, 80) });
     if(type && type!=='order') return res.status(200).end();
 
     const r=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)}`,{headers:{Authorization:`Bearer ${MP_TOKEN}`}});
@@ -59,17 +79,23 @@ export default async function handler(req,res){
 
     const pm=order?.transactions?.payments?.[0]?.payment_method||{};
     const method=(pm.id==='pix'||pm.type==='bank_transfer')?'pix':'card';
+    const processedStatus=normalize(order);
     await rpc('process_mercado_pago_payment',{
       p_order_id:internalOrderId,
       p_provider_payment_id:String(order.id),
-      p_status:normalize(order),
+      p_status:processedStatus,
       p_payment_method:method,
       p_raw_status:String(order.status_detail||order.status||''),
       p_metadata:order
     });
+    console.info('[mercado-pago-webhook] pedido processado', {
+      orderId: internalOrderId,
+      providerOrderId: String(order.id),
+      status: processedStatus
+    });
     return res.status(200).end();
   }catch(e){
-    console.error(e);
+    console.error('[mercado-pago-webhook] falha ao processar', { message: String(e?.message||e) });
     return res.status(500).end();
   }
 }
