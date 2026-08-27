@@ -72,6 +72,17 @@ export default async function handler(req, res) {
         metadata: { ...item.metadata, level: requestedLevel, pal_preferences: palPreferences }
       };
     }
+    if (['weapons', 'armor'].includes(item.category)) {
+      const requestedTier = String(req.body?.equipmentTier || 'normal').toLowerCase();
+      if (!['normal', 'legendary'].includes(requestedTier)) return json(res, 400, { error: 'Escolha a qualidade Normal ou Lendária.' });
+      const victoryCoins = requestedTier === 'legendary' ? 5 : item.category === 'weapons' ? 2 : 3;
+      selectedItem = {
+        ...item,
+        name: `${item.name} — ${requestedTier === 'legendary' ? 'Lendária' : 'Normal'}`,
+        victoryCoins,
+        metadata: { ...item.metadata, equipment_tier: requestedTier }
+      };
+    }
 
     const result = await serviceFetch('rpc/create_catalog_order_with_victory_coins', {
       method: 'POST',
