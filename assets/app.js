@@ -121,7 +121,8 @@ function renderShop(){
     const source=product.sourceUrl?`<a class="shop-source" href="${esc(product.sourceUrl)}" target="_blank" rel="noopener">Referência Palworld.gg ↗</a>`:'';
     const fallbacks=(Array.isArray(product.imageFallbackUrls)?product.imageFallbackUrls:[]).filter(Boolean).join('|');
     const image=product.imageUrl?`<img src="${esc(product.imageUrl)}" data-fallbacks="${esc(fallbacks)}" alt="${esc(product.name)}" loading="lazy" onerror="const next=(this.dataset.fallbacks||'').split('|').filter(Boolean);if(next.length){this.src=next.shift();this.dataset.fallbacks=next.join('|')}else{this.hidden=true;this.nextElementSibling.hidden=false}"><span class="shop-fallback-icon" hidden>${emoji}</span>`:`<span class="shop-fallback-icon">${emoji}</span>`;
-    return `<article class="shop-card shop-${esc(category)}"><div class="shop-card-top"><span class="shop-category">${emoji} ${label}</span>${quantity}</div><div class="shop-image">${image}</div><h3>${esc(product.name)}</h3><p>${esc(product.description||'Item para entrega no servidor.')}</p><footer><div><small>Entrega no jogo</small><strong>${coins(product.victoryCoins)} MV</strong></div><button class="buy-btn" data-shop-buy="${esc(product.key)}">Comprar</button></footer>${source}</article>`;
+    const equipmentPrice=category==='weapons'||category==='armor'?`${category==='weapons'?'2':'3'}–5 MV`: `${coins(product.victoryCoins)} MV`;
+    return `<article class="shop-card shop-${esc(category)}"><div class="shop-card-top"><span class="shop-category">${emoji} ${label}</span>${quantity}</div><div class="shop-image">${image}</div><h3>${esc(product.name)}</h3><p>${esc(product.description||'Item para entrega no servidor.')}</p><footer><div><small>Entrega no jogo</small><strong>${equipmentPrice}</strong></div><button class="buy-btn" data-shop-buy="${esc(product.key)}">Comprar</button></footer>${source}</article>`;
   }).join(''):`<div class="empty-state"><b>Nenhum item nesta categoria</b><p>Tente outro termo ou escolha uma categoria diferente.</p></div>`;
   const pagination=$('#shop-pagination');
   if(pagination)pagination.innerHTML=rows.length>perPage?`<button data-page="${shopPage-1}" ${shopPage===1?'disabled':''}>← Anterior</button><span>Página ${shopPage} de ${totalPages}</span><button data-page="${shopPage+1}" ${shopPage===totalPages?'disabled':''}>Próxima →</button>`:'';
@@ -136,15 +137,22 @@ function openShopPurchase(item){
   if(!session){toast('Entre com Discord para comprar com Moedas da Vitória.');signIn();return}
   if(!profile?.palworld_nickname)return openOnboarding();
   if(shopCategory(item)==='pals')return openCatalogPalPurchase(item);
-  modal(`<span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>${esc(item.name)}</h2><p>Serão descontadas <b>${coins(item.victoryCoins)} Moedas da Vitória</b>. O pedido entra na fila para entrega manual de um ADM.</p><form id="shop-buy" class="form"><label>Servidor<select name="server"><option value="1" ${profile.default_server===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${profile.default_server===2?'selected':''}>Extreme World com Wipe</option></select></label><button class="full-btn">Comprar por ${coins(item.victoryCoins)} MV</button></form>`);
-  $('#shop-buy').onsubmit=async event=>{
-    event.preventDefault();const button=event.target.querySelector('button');button.disabled=true;button.textContent='Criando pedido...';
+  const isEquipment=['weapons','armor'].includes(shopCategory(item));
+  const normalPrice=shopCategory(item)==='weapons'?2:3;
+  const tierControl=isEquipment?`<label>Qualidade<select name="equipmentTier"><option value="normal">Normal — ${normalPrice} MV</option><option value="legendary">Lendária — 5 MV</option></select></label>`:'';
+  modal(`<span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>${esc(item.name)}</h2><p>${isEquipment?'Escolha a qualidade.':'Serão descontadas '+`<b>${coins(item.victoryCoins)} Moedas da Vitória</b>.`} O pedido entra na fila para entrega manual de um ADM.</p><form id="shop-buy" class="form"><label>Servidor<select name="server"><option value="1" ${profile.default_server===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${profile.default_server===2?'selected':''}>Extreme World com Wipe</option></select></label>${tierControl}<button class="full-btn"></button></form>`);
+  const form=$('#shop-buy'),button=form.querySelector('button'),tierSelect=form.querySelector('[name="equipmentTier"]');
+  const syncEquipmentPrice=()=>{const price=tierSelect?.value==='legendary'?5:(isEquipment?normalPrice:item.victoryCoins);button.textContent=`Comprar por ${coins(price)} MV`};
+  if(tierSelect)tierSelect.onchange=syncEquipmentPrice;syncEquipmentPrice();
+  form.onsubmit=async event=>{
+    event.preventDefault();button.disabled=true;button.textContent='Criando pedido...';
     try{
       const serverNumber=Number(new FormData(event.target).get('server'));
-      const response=await fetch('/api/catalog-purchase',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({catalogKey:item.key,serverNumber})});
+      const equipmentTier=tierSelect?.value;
+      const response=await fetch('/api/catalog-purchase',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({catalogKey:item.key,serverNumber,equipmentTier})});
       const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Não foi possível criar o pedido.');
       closeModal();toast('Pedido criado! Aguarde a entrega do ADM.');await loadAccount();
-    }catch(error){toast(error.message);button.disabled=false;button.textContent=`Comprar por ${coins(item.victoryCoins)} MV`}
+    }catch(error){toast(error.message);button.disabled=false;syncEquipmentPrice()}
   };
 }
 function openCatalogPalPurchase(item){
