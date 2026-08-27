@@ -38,7 +38,7 @@ async function getAuthenticatedUser(accessToken){
 }
 
 async function updatePortalRole(userId,role){
-  const result=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}`,{
+  const result=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId) }&role_source=neq.manual`.replace('${encodeURIComponent(userId) }','${encodeURIComponent(userId)}'),{
     method:'PATCH',
     headers:{
       apikey:SUPABASE_SERVICE_ROLE_KEY,
@@ -48,7 +48,15 @@ async function updatePortalRole(userId,role){
     },
     body:JSON.stringify({role})
   });
+  const updated=await result.json().catch(()=>[]);
   if(!result.ok)throw new Error('Não foi possível atualizar o cargo no portal.');
+  if(updated?.[0]?.role)return updated[0].role;
+
+  const current=await fetch(`${SUPABASE_URL}/rest/v1/profiles?select=role&user_id=eq.${encodeURIComponent(userId)}&limit=1`,{
+    headers:{apikey:SUPABASE_SERVICE_ROLE_KEY,Authorization:`Bearer ${SUPABASE_SERVICE_ROLE_KEY}`}
+  });
+  const rows=await current.json().catch(()=>[]);
+  return rows?.[0]?.role||role;
 }
 
 export default async function handler(req,res){
@@ -79,8 +87,8 @@ export default async function handler(req,res){
     const matchedRole=configuredRoles().find(item=>roleIds.has(item.discordRoleId));
     const portalRole=matchedRole?.portalRole||'player';
 
-    await updatePortalRole(user.id,portalRole);
-    return reply(res,200,{role:portalRole,syncedAt:new Date().toISOString()});
+    const resolvedRole=await updatePortalRole(user.id,portalRole);
+    return reply(res,200,{role:resolvedRole,syncedAt:new Date().toISOString()});
   }catch(error){
     console.error('[discord-sync] failed',error);
     return reply(res,500,{error:'Não foi possível sincronizar os cargos agora.'});
