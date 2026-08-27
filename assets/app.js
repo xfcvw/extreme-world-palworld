@@ -314,11 +314,11 @@ async function loadAccount(){
   ]);
   profile=p;wallet=w;orders=o||[];renderAuth();if(profile&&!profile.palworld_nickname)openOnboarding();
   syncDiscordRole(session).then(result=>{
-    if(profile&&result?.role&&profile.role!==result.role){profile.role=result.role;}
+    if(profile&&result?.role&&profile.role!==result.role){profile.role=result.role;renderAuth();}
   }).catch(error=>console.info('Sincronização de cargos pendente:',error.message));
 }
 function renderAuth(){
-  const logged=!!session;$('#login-btn').hidden=logged;$('#account-btn').hidden=!logged;$('#wallet-pill').hidden=!logged;if(logged){$('#wallet-balance').textContent=coins(wallet?.balance||0);const show=$('#wallet-showcase-value');if(show)show.textContent=`${coins(wallet?.balance||0)} Moedas da Vitória`;}else{const show=$('#wallet-showcase-value');if(show)show.textContent='Entre com Discord para consultar seu saldo';}
+  const logged=!!session;$('#login-btn').hidden=logged;$('#account-btn').hidden=!logged;$('#wallet-pill').hidden=!logged;const adminLink=$('#admin-nav-link');if(adminLink)adminLink.hidden=!['owner','admin'].includes(profile?.role);if(logged){$('#wallet-balance').textContent=coins(wallet?.balance||0);const show=$('#wallet-showcase-value');if(show)show.textContent=`${coins(wallet?.balance||0)} Moedas da Vitória`;}else{const show=$('#wallet-showcase-value');if(show)show.textContent='Entre com Discord para consultar seu saldo';}
 }
 function openOnboarding(){
   modal(`<span class="eyebrow blue">PRIMEIRO ACESSO</span><h2>Vincule seu player</h2><p>Seu Discord já está conectado. Falta só o NickName usado dentro do Palworld.</p><form id="onboarding" class="form"><label>NickName no Palworld<input name="nick" required maxlength="80" value="${esc(profile?.palworld_nickname||'')}" placeholder="Ex.: ExtremePlayer"></label><label>Servidor principal<select name="server"><option value="1">Extreme World sem Wipe</option><option value="2" ${profile?.default_server===2?'selected':''}>Extreme World com Wipe</option></select></label><button class="full-btn">Salvar perfil</button></form>`);
