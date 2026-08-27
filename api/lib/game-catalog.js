@@ -29,9 +29,11 @@ function itemImage(asset) {
   return `${ITEM_ICON_BASE}${encodeURIComponent(assetName)}`;
 }
 
-function proxiedImage(source) {
+function proxiedImage(source, fallbackCategory = '') {
   const url = safeText(source);
-  return url ? `/api/palworld-image?src=${encodeURIComponent(url)}` : null;
+  if (!url) return null;
+  const fallback = fallbackCategory ? `&fallback=${encodeURIComponent(fallbackCategory)}` : '';
+  return `/api/palworld-image?src=${encodeURIComponent(url)}${fallback}`;
 }
 
 function uniqueUrls(values) {
@@ -74,7 +76,7 @@ function equipmentImages(item, key, category, pageImages, name) {
     itemImage(iconAsset),
     itemImage(rawIcon),
     CATEGORY_FALLBACK_IMAGES[category]
-  ]).map(proxiedImage);
+  ]).map(url => proxiedImage(url, category));
 }
 
 function palImage(icon) {
