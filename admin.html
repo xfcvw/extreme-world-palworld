@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Extreme World | Administração</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="admin-page">
+  <header class="topbar portal-topbar">
+    <a class="brand" href="/"><span class="brand-mark">EW</span><span><b>EXTREME</b> WORLD<small>ADMIN CENTER</small></span></a>
+    <nav><a href="/">Portal</a><a href="/perfil.html">Jogador</a><a href="/#marketplace">MarketPlace</a></nav>
+    <div class="account-actions"><a class="ghost-btn admin-back" href="/">Voltar à loja</a></div>
+  </header>
+  <main class="admin-main shell">
+    <section class="admin-hero">
+      <div><span class="eyebrow cyan">CENTRAL DE OPERAÇÃO</span><h1>Painel administrativo</h1><p>Pedidos, jogadores, produtos e carteiras em uma visão organizada para a equipe Extreme World.</p></div>
+      <div class="admin-live"><span class="status-dot"></span><b>Sistema online</b><small>Supabase + Vercel</small></div>
+    </section>
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <span class="admin-side-title">GERENCIAMENTO</span>
+        <a class="active" href="#overview">◫ Visão geral</a><a href="#catalog">▤ Loja</a><a href="#deliveries">▣ Entregas</a><a href="/#vips">♛ VIPs</a><a href="/#moedas">◉ Moedas</a><a href="/#loja">⚔ Produtos</a>
+        <span class="admin-side-title">PORTAL</span><a href="/perfil.html">◎ Meu perfil</a><a href="/">← Voltar ao portal</a>
+      </aside>
+      <section id="admin-root" class="admin-content"><div class="admin-loading">Carregando dados administrativos...</div></section>
+    </div>
+  </main>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="/assets/admin.js"></script>
+</body>
+</html>

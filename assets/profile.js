@@ -1,0 +1,31 @@
+import { SITE_ORIGIN, getSharedSession, supabase, syncDiscordRole } from '/assets/auth.js';
+const $=s=>document.querySelector(s);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const coins=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
+function toast(message){const el=$('#toast');el.textContent=message;el.hidden=false;clearTimeout(window.__t);window.__t=setTimeout(()=>el.hidden=true,3200)}
+const statusLabel=s=>({pending_payment:'Aguardando pagamento',paid:'Pago',awaiting_delivery:'Aguardando entrega',in_delivery:'Em entrega',delivered:'Entregue',cancelled:'Cancelado',refunded:'Reembolsado'}[s]||s);
+const txLabel=t=>({purchase_credit:'Compra de moedas',purchase_debit:'Compra com moedas',admin_credit:'Crédito de ADM',admin_debit:'Débito de ADM',refund:'Reembolso',bonus:'Bônus',adjustment:'Ajuste'}[t]||t);
+async function signIn(){const {error}=await supabase.auth.signInWithOAuth({provider:'discord',options:{redirectTo:`${SITE_ORIGIN}/perfil.html`}});if(error)toast(error.message)}
+$('#profile-login').onclick=event=>{event.preventDefault();signIn()};
+$('#profile-logout').onclick=async()=>{await supabase.auth.signOut();location.href='/'};
+async function load(){try{const session=await getSharedSession();if(!session){$('#profile-loading').innerHTML='<b>Entre com Discord para acessar sua Central do Jogador.</b><br><button id="profile-retry-login" class="discord-btn" style="margin-top:18px">Entrar com Discord</button>';$('#profile-retry-login').onclick=signIn;return}
+await syncDiscordRole(session).catch(error=>console.info('Sincronização de cargos pendente:',error.message));
+$('#profile-login').hidden=true;$('#profile-logout').hidden=false;const uid=session.user.id;
+const [{data:p,error:pe},{data:w},{data:o},{data:t}]=await Promise.all([
+supabase.from('profiles').select('*').eq('user_id',uid).maybeSingle(),supabase.from('wallets').select('*').eq('user_id',uid).maybeSingle(),supabase.from('orders').select('id,order_number,status,payment_method,total_cents,victory_coins_total,created_at,order_items(name_snapshot,vip_plan_id)').eq('user_id',uid).order('created_at',{ascending:false}).limit(20),supabase.from('wallet_transactions').select('*').eq('user_id',uid).order('created_at',{ascending:false}).limit(30)]);
+if(pe){$('#profile-loading').textContent=pe.message;return}
+$('#profile-loading').hidden=true;$('#profile-content').hidden=false;$('#profile-wallet').hidden=false;$('#profile-wallet span').textContent=coins(w?.balance||0);$('#profile-balance').textContent=coins(w?.balance||0);$('#profile-nick').textContent=p?.palworld_nickname||'Não informado';$('#profile-server').textContent=p?.default_server?`Servidor ${p.default_server}`:'Não definido';$('#profile-name').textContent=p?.display_name||p?.discord_username||'Player';$('#profile-discord').textContent=p?.discord_username?`@${p.discord_username.replace(/^@/,'')}`:'Conta Discord vinculada';$('#role-badge').textContent=(p?.role||'player').toUpperCase();const avatar=p?.discord_avatar_url||session.user.user_metadata?.avatar_url||'';if(avatar)$('#profile-avatar').src=avatar;else $('#profile-avatar').src='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="160" height="160"%3E%3Crect width="100%25" height="100%25" rx="28" fill="%231267ff"/%3E%3Ctext x="50%25" y="58%25" text-anchor="middle" font-size="56" fill="white" font-family="Arial"%3EEW%3C/text%3E%3C/svg%3E';
+const vipOrder=(o||[]).find(x=>(x.order_items||[]).some(i=>i.vip_plan_id)&&['awaiting_delivery','in_delivery','delivered','paid'].includes(x.status));if(vipOrder){const item=(vipOrder.order_items||[]).find(i=>i.vip_plan_id);$('#vip-badge').textContent=`${item?.name_snapshot||'VIP'} · ${statusLabel(vipOrder.status)}`}
+const form=$('#profile-form');form.nick.value=p?.palworld_nickname||'';form.server.value=String(p?.default_server||1);form.bio.value=p?.bio||'';form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form);const {error}=await supabase.from('profiles').update({palworld_nickname:String(f.get('nick')).trim(),default_server:Number(f.get('server')),bio:String(f.get('bio')||'').trim()}).eq('user_id',uid);if(error)return toast(error.message);toast('Perfil atualizado.');setTimeout(()=>location.reload(),500)};
+$('#orders-count').textContent=String((o||[]).length);$('#profile-orders').innerHTML=(o||[]).length?(o||[]).map(x=>`<div class="order-row"><span><b>#EW-${x.order_number}</b><br><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></span><span><b>${esc((x.order_items||[])[0]?.name_snapshot||'Pedido')}</b><br><small>${esc(statusLabel(x.status))}</small></span></div>`).join(''):'<div class="empty-state"><b>Nenhum pedido ainda</b><p>Suas compras aparecerão aqui.</p></div>';
+$('#wallet-history').innerHTML=(t||[]).length?(t||[]).map(x=>`<div class="transaction-row"><div><b>${esc(txLabel(x.transaction_type))}</b><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></div><strong class="${Number(x.amount)>=0?'positive':'negative'}">${Number(x.amount)>=0?'+':''}${coins(x.amount)} MV</strong></div>`).join(''):'<div class="empty-state"><b>Sem movimentações</b><p>Compras e ajustes da carteira aparecerão aqui.</p></div>';
+}catch(error){console.error('Falha ao carregar o perfil:',error);$('#profile-loading').innerHTML='<b>Não foi possível recuperar sua sessão.</b><br><button id="profile-retry-login" class="discord-btn" style="margin-top:18px">Entrar com Discord</button>';$('#profile-retry-login').onclick=signIn;}}
+// O callback de autenticação é executado dentro do bloqueio interno do
+// Supabase. Consultar sessão/banco diretamente nele pode deixar a tela presa
+// em "Carregando". Por isso, a atualização é sempre agendada para depois.
+let profileLoadScheduled=false;
+function scheduleProfileLoad(){
+  if(profileLoadScheduled)return;
+  profileLoadScheduled=true;
+  setTimeout(()=>{profileLoadScheduled=false;load()},0);
+}
+supabase.auth.onAuthStateChange(()=>scheduleProfileLoad());
+scheduleProfileLoad();

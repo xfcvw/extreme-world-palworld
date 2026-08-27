@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#071426" />
+  <meta name="description" content="Extreme World — portal oficial de VIPs, Pals e Moedas da Vitória." />
+  <title>Extreme World | Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/styles.css" />
+  <link rel="stylesheet" href="/assets/currency.css" />
+  <link rel="stylesheet" href="/assets/community-map.css" />
+</head>
+<body class="portal-page">
+  <div class="noise"></div>
+  <header class="topbar portal-topbar">
+    <a class="brand" href="#inicio" aria-label="Extreme World">
+      <span class="brand-mark">EW</span>
+      <span><b>EXTREME</b> WORLD<small>PALWORLD PORTAL</small></span>
+    </a>
+    <nav class="portal-nav">
+      <a href="#inicio">Home</a>
+      <a href="#marketplace">MarketPlace</a>
+      <a href="#servidores">Servidores</a>
+      <a href="#vips">VIPs</a>
+      <a href="#loja">Loja</a>
+      <a href="#mapa">Mapa</a>
+      <a href="/perfil.html">Jogador</a>
+    </nav>
+    <div class="account-actions">
+      <button id="wallet-pill" class="wallet-pill" hidden>🪙 <span id="wallet-balance">0</span></button>
+      <a id="login-btn" class="discord-btn direct-login" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Entrar com Discord</a>
+      <button id="account-btn" class="ghost-btn" hidden>Minha conta</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="inicio" class="portal-hero-section">
+      <div class="shell portal-hero-grid">
+        <article class="portal-hero-card">
+          <img class="portal-hero-image" src="/assets/hero.webp" alt="Extreme World Palworld" loading="eager">
+          <div class="portal-hero-shade"></div>
+          <div class="portal-hero-copy">
+            <span class="eyebrow cyan">SERVIDORES, LOJA E COMUNIDADE</span>
+            <h1>Extreme World<br><em>Palworld Portal</em></h1>
+            <p>Seu ponto central para comprar VIPs, gerenciar Moedas da Vitória, acompanhar pedidos e acessar sua conta do servidor.</p>
+            <div class="hero-actions">
+              <a class="primary-btn" href="#loja">Abrir MarketPlace</a>
+              <a class="secondary-btn direct-login" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Conectar Discord</a>
+            </div>
+          </div>
+        </article>
+
+        <aside class="portal-highlight-card">
+          <div class="portal-highlight-icon">🎮</div>
+          <span class="eyebrow cyan">PORTAL EM DESTAQUE</span>
+          <h2>Controle em um só lugar</h2>
+          <p>Loja, carteira, pedidos e sua identidade no Palworld conectados à mesma conta Discord.</p>
+          <div class="portal-metrics">
+            <article><span>Servidores</span><b>2</b></article>
+            <article><span>Planos VIP</span><b>4</b></article>
+            <article><span>Loja</span><b>24/7</b></article>
+          </div>
+          <a class="portal-inline-link" href="/perfil.html">Abrir Central do Jogador →</a>
+        </aside>
+      </div>
+    </section>
+
+    <section class="portal-dashboard shell">
+      <div class="portal-dashboard-head">
+        <div><span class="eyebrow cyan">CENTRAL DO JOGADOR</span><h2>Seu progresso começa aqui</h2></div>
+        <p>Uma visão rápida das principais áreas da sua conta Extreme World.</p>
+      </div>
+      <div class="portal-feature-grid">
+        <article class="portal-info-card"><div class="portal-card-icon blue">◉</div><h3>Como começar</h3><p>Conecte o Discord, informe seu NickName e selecione seu servidor principal.</p><a href="/perfil.html">Configurar conta →</a></article>
+        <article class="portal-info-card"><div class="portal-card-icon gold">▣</div><h3>Carteira pessoal</h3><p>Moedas da Vitória compradas entram automaticamente no seu banco pessoal após aprovação.</p><a href="#moedas">Comprar moedas →</a></article>
+        <article class="portal-info-card"><div class="portal-card-icon green">♜</div><h3>Pedidos e entrega</h3><p>VIPs e Pals entram em uma fila organizada para os ADMs realizarem a entrega manual.</p><a href="/perfil.html">Acompanhar pedidos →</a></article>
+      </div>
+    </section>
+
+    <section id="servidores" class="server-section">
+      <div class="shell">
+        <div class="portal-dashboard-head">
+          <div><span class="eyebrow cyan">MUNDOS EXTREME</span><h2>Servidores</h2></div>
+          <p>Os cards já estão preparados para receber status, players online e eventos quando conectarmos a API dos servidores.</p>
+        </div>
+        <div class="server-grid">
+          <article class="server-card" data-game-server="1"><div class="server-card-head"><div><span class="server-kicker">MUNDO 01</span><h3 data-server-title>Extreme World sem Wipe</h3></div><span class="status-badge pending" data-server-status>Carregando...</span></div><div class="server-stats"><div><span>Players online</span><b data-server-players>—</b></div><div><span>Status</span><b data-server-state>Consultando</b></div><div><span>Versão</span><b data-server-version>—</b></div></div><div class="server-tags"><span>VIP</span><span>Pals</span><span>Moedas</span></div></article>
+          <article class="server-card" data-game-server="2"><div class="server-card-head"><div><span class="server-kicker">MUNDO 02</span><h3 data-server-title>Extreme World com Wipe</h3></div><span class="status-badge pending" data-server-status>Carregando...</span></div><div class="server-stats"><div><span>Players online</span><b data-server-players>—</b></div><div><span>Status</span><b data-server-state>Consultando</b></div><div><span>Versão</span><b data-server-version>—</b></div></div><div class="server-tags"><span>VIP</span><span>Pals</span><span>Moedas</span></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="marketplace" class="marketplace-shell shell">
+      <div class="marketplace-banner">
+        <div><span class="eyebrow cyan">MARKETPLACE EXTREME WORLD</span><h2>Escolha como evoluir</h2><p>Planos VIP, banco de moedas e catálogo de Pals em uma experiência única.</p></div>
+        <div class="marketplace-tabs"><a href="#loja">Loja</a><a href="#vips">VIPs</a><a href="#moedas">Moedas</a><a href="#pals">Pals por moedas</a></div>
+      </div>
+    </section>
+
+    <section id="loja" class="section shell portal-store-section game-store-section">
+      <div class="section-head portal-section-head">
+        <div><span class="eyebrow cyan">LOJA DO SERVIDOR</span><h2>Itens prontos para entrega</h2></div>
+        <p>Todos os Pals, armas e armaduras, além de recursos e esferas difíceis de conseguir. As compras usam somente Moedas da Vitória e entram na fila de entrega do servidor escolhido.</p>
+      </div>
+      <div class="shop-toolbar">
+        <div id="shop-filters" class="shop-filters" aria-label="Categorias da loja">
+          <button class="active" data-shop-category="all">✦ Todos</button>
+          <button data-shop-category="pals">🐾 Pals</button>
+          <button data-shop-category="weapons">⚔ Armas</button>
+          <button data-shop-category="armor">🛡 Armaduras</button>
+          <button data-shop-category="resources">⛏ Recursos</button>
+        </div>
+        <label class="shop-search-field"><span>⌕</span><input id="shop-search" placeholder="Buscar Pal, arma, armadura ou recurso..." autocomplete="off"></label>
+      </div>
+      <p id="shop-count" class="shop-count">Carregando catálogo completo...</p>
+      <div id="shop-grid" class="shop-grid"><div class="loading-card">Carregando catálogo da loja...</div></div>
+      <div id="shop-pagination" class="shop-pagination" aria-label="Paginação da loja"></div>
+      <p class="catalog-credit">Ícones e referências de itens: <a href="https://palworld.gg/pt-BR" target="_blank" rel="noopener">Palworld.gg ↗</a></p>
+    </section>
+
+    <section id="vips" class="section shell portal-store-section">
+      <div class="section-head portal-section-head">
+        <div><span class="eyebrow blue">BENEFÍCIOS EXCLUSIVOS</span><h2>VIP Extreme World</h2></div>
+        <p>Escolha o nível que combina com seu estilo de jogo e acompanhe a compra pelo portal.</p>
+      </div>
+      <div class="vip-art-frame"><img src="/assets/vips.webp" alt="Planos VIP Extreme World" loading="lazy"></div>
+      <div id="vip-grid" class="vip-grid"><div class="loading-card">Carregando VIPs...</div></div>
+      <div id="vip-extra" class="vip-extra"><div class="loading-card">Carregando benefícios...</div></div>
+    </section>
+
+    <section id="moedas" class="section section-dark portal-coins-section">
+      <div class="shell">
+        <div class="section-head portal-section-head dark-head">
+          <div><span class="eyebrow cyan">BANCO PESSOAL</span><h2>Moedas da Vitória</h2></div>
+          <p>Compre saldo para sua conta. Após a confirmação do Mercado Pago, o crédito entra automaticamente na sua carteira.</p>
+        </div>
+        <div class="wallet-showcase"><div class="wallet-showcase-icon">🪙</div><div><span>CARTEIRA EXTREME</span><strong id="wallet-showcase-value">Entre com Discord para consultar seu saldo</strong></div><a href="/perfil.html">Abrir banco pessoal →</a></div>
+        <div id="coins-grid" class="coins-grid"><div class="loading-card dark">Carregando compra de moedas...</div></div>
+      </div>
+    </section>
+
+    <section id="pals" class="section shell portal-store-section">
+      <div class="section-head portal-section-head">
+        <div><span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>Pals por classe</h2></div>
+        <p>Este catálogo usa seu saldo de Moedas da Vitória. Para compras por Pix ou cartão, veja a Loja do Servidor acima.</p>
+      </div>
+      <div class="pal-toolbar portal-pal-toolbar">
+        <div id="class-filters" class="filters"><button class="active" data-class="ALL">Todos</button><button data-class="S">S</button><button data-class="A">A</button><button data-class="B">B</button><button data-class="C">C</button><button data-class="D">D</button></div>
+        <label class="search-field"><span>⌕</span><input id="pal-search" placeholder="Buscar Pal..." /></label>
+      </div>
+      <div id="pal-grid" class="pal-grid"></div>
+    </section>
+
+    <section id="mapa" class="community-section map-section">
+      <div class="shell">
+        <div class="map-section-head">
+          <div><span class="eyebrow cyan">GUIA DE PALPAGOS</span><h2>Mapa interativo do Palworld</h2><p>Encontre Pals, chefes, viagens rápidas, baús, ovos, materiais e outros pontos importantes do mundo.</p></div>
+          <a class="secondary-btn" href="https://palworld.gg/pt-BR/map" target="_blank" rel="noopener">Abrir mapa em tela cheia ↗</a>
+        </div>
+        <div class="map-embed-card">
+          <iframe src="https://palworld.gg/pt-BR/map" title="Mapa interativo do Palworld, fornecido por Palworld.gg" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+          <div class="map-embed-note">Mapa e dados fornecidos por <a href="https://palworld.gg/pt-BR/map" target="_blank" rel="noopener">Palworld.gg</a>. Caso seu navegador bloqueie a visualização abaixo, use o botão “Abrir mapa em tela cheia”.</div>
+        </div>
+        <div class="community-grid community-links">
+          <article class="community-card"><span class="eyebrow cyan">COMUNIDADE EXTREME</span><h2>Fale com a equipe</h2><p>Entre nos canais oficiais para tirar dúvidas, acompanhar avisos e fazer parte da comunidade.</p><div class="community-actions"><a class="primary-btn" href="https://discord.gg/avrNQDyGVC" target="_blank" rel="noopener">Entrar no Discord</a><a class="whatsapp-btn" href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener">WhatsApp do servidor ↗</a></div></article>
+          <article class="community-info-card"><span>◈</span><div><b>Mapa sempre atualizado</b><small>Use os filtros do mapa para encontrar o que precisa antes de entrar no servidor.</small></div></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="shell footer-grid"><div class="brand"><span class="brand-mark">EW</span><span><b>EXTREME</b> WORLD<small>PALWORLD PORTAL</small></span></div><p>Portal oficial da comunidade Extreme World.</p><div class="footer-links"><a href="https://discord.gg/avrNQDyGVC" target="_blank" rel="noopener">Discord ↗</a><a href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener">WhatsApp ↗</a></div></div></footer>
+
+  <div id="modal" class="modal" hidden><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-body"></div></div></div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="/assets/app.js"></script>
+</body>
+</html>
