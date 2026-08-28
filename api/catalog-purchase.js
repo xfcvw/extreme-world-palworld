@@ -21,7 +21,7 @@ async function serviceFetch(path, options = {}) {
 }
 
 async function loadOverrides() {
-  return serviceFetch('catalog_price_overrides?select=catalog_key,victory_coins_price,equipment_normal_price,equipment_legendary_price,active');
+  return serviceFetch('catalog_price_overrides?select=catalog_key,victory_coins_price,equipment_normal_price,equipment_legendary_price,pal_level_80_price,pal_level_255_price,pal_level_80_active,pal_level_255_active,active');
 }
 
 function cleanRequestText(value, maxLength) {
@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     if (item.category === 'pals') {
       if (![80, 255].includes(requestedLevel)) return json(res, 400, { error: 'Escolha o nível 80 ou 255 para o Pal.' });
       if (serverNumber === 2 && requestedLevel === 255) return json(res, 400, { error: 'No Extreme World com Wipe, Pals são entregues somente no nível 80.' });
+      if (item.metadata?.pal_levels_active?.[requestedLevel] === false) return json(res, 400, { error: `A opção de nível ${requestedLevel} está desativada para este Pal.` });
       const priceByLevel = item.metadata?.price_by_level || {};
       const victoryCoins = Number(priceByLevel[requestedLevel]);
       if (!Number.isFinite(victoryCoins) || victoryCoins < 1) return json(res, 500, { error: 'O preço desse Pal ainda não foi configurado.' });

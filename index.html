@@ -26,7 +26,8 @@
       <a href="#inicio">Home</a>
       <a href="#marketplace">MarketPlace</a>
       <a href="#servidores">Servidores</a>
-      <a href="#vips">Pacotes</a>
+      <a href="#pacotes">Pacotes</a>
+      <a href="#vips">VIPs</a>
       <a href="#loja">Loja</a>
       <a href="#mapa">Mapa</a>
       <a href="/tickets.html">Tickets</a>
@@ -88,11 +89,11 @@
       <div class="shell">
         <div class="portal-dashboard-head">
           <div><span class="eyebrow cyan">MUNDOS EXTREME</span><h2>Servidores</h2></div>
-          <p>Os cards já estão preparados para receber status, players online e eventos quando conectarmos a API dos servidores.</p>
+          <p>Informações atualizadas automaticamente pela API segura dos servidores.</p>
         </div>
         <div class="server-grid">
-          <article class="server-card" data-game-server="1"><div class="server-card-head"><div><span class="server-kicker">MUNDO 01</span><h3 data-server-title>Extreme World sem Wipe</h3></div><span class="status-badge pending" data-server-status>Carregando...</span></div><div class="server-stats"><div><span>Players online</span><b data-server-players>—</b></div><div><span>Status</span><b data-server-state>Consultando</b></div><div><span>Versão</span><b data-server-version>—</b></div></div><div class="server-tags"><span>VIP</span><span>Pals</span><span>Moedas</span></div></article>
-          <article class="server-card" data-game-server="2"><div class="server-card-head"><div><span class="server-kicker">MUNDO 02</span><h3 data-server-title>Extreme World com Wipe</h3></div><span class="status-badge pending" data-server-status>Carregando...</span></div><div class="server-stats"><div><span>Players online</span><b data-server-players>—</b></div><div><span>Status</span><b data-server-state>Consultando</b></div><div><span>Versão</span><b data-server-version>—</b></div></div><div class="server-tags"><span>VIP</span><span>Pals</span><span>Moedas</span></div></article>
+          <article class="server-card" data-game-server="1"><div class="server-card-head"><div><span class="server-kicker">MUNDO 01</span><h3 data-server-title>Extreme World sem Wipe</h3></div><span class="status-badge pending" data-server-status>Carregando...</span></div><div class="server-stats"><div><span>Players online</span><b data-server-players>—</b></div><div><span>Status</span><b data-server-state>Consultando</b></div><div><span>Versão</span><b data-server-version>—</b></div><div><span>Latência da API</span><b data-server-latency>—</b></div></div><small class="server-updated" data-server-updated></small><div class="server-tags"><span>VIP</span><span>Pals</span><span>Moedas</span></div></article>
+          <article class="server-card" data-game-server="2"><div class="server-card-head"><div><span class="server-kicker">MUNDO 02</span><h3 data-server-title>Extreme World com Wipe</h3></div><span class="status-badge pending" data-server-status>Carregando...</span></div><div class="server-stats"><div><span>Players online</span><b data-server-players>—</b></div><div><span>Status</span><b data-server-state>Consultando</b></div><div><span>Versão</span><b data-server-version>—</b></div><div><span>Latência da API</span><b data-server-latency>—</b></div></div><small class="server-updated" data-server-updated></small><div class="server-tags"><span>VIP</span><span>Pals</span><span>Moedas</span></div></article>
         </div>
       </div>
     </section>
@@ -100,7 +101,7 @@
     <section id="marketplace" class="marketplace-shell shell">
       <div class="marketplace-banner">
         <div><span class="eyebrow cyan">MARKETPLACE EXTREME WORLD</span><h2>Escolha como evoluir</h2><p>Planos VIP, banco de moedas e catálogo de Pals em uma experiência única.</p></div>
-        <div class="marketplace-tabs"><a href="#loja">Loja</a><a href="#vips">Pacotes</a><a href="#moedas">Moedas</a><a href="#pals">Pals por moedas</a></div>
+        <div class="marketplace-tabs"><a href="#loja">Loja</a><a href="#pacotes">Pacotes</a><a href="#vips">VIPs</a><a href="#moedas">Moedas</a><a href="#pals">Pals por moedas</a></div>
       </div>
     </section>
 
@@ -123,6 +124,12 @@
       <div id="shop-grid" class="shop-grid"><div class="loading-card">Carregando catálogo da loja...</div></div>
       <div id="shop-pagination" class="shop-pagination" aria-label="Paginação da loja"></div>
       <p class="catalog-credit">Ícones e referências de itens: <a href="https://palworld.gg/pt-BR" target="_blank" rel="noopener">Palworld.gg ↗</a></p>
+      <aside class="international-purchase-note"><b>International Players:</b> To make a purchase, please open a ticket and provide the details of the item or package you would like to buy. Our team will assist you with the payment and delivery process. <a class="secondary-btn" href="/tickets.html?category=purchase">Open a Purchase Ticket</a></aside>
+    </section>
+
+    <section id="pacotes" class="section shell portal-store-section">
+      <div class="section-head portal-section-head"><div><span class="eyebrow cyan">PACOTES EXTREME</span><h2>Pacotes para entrega</h2></div><p>Ofertas de entrega separadas dos VIPs. Veja a descrição e o valor antes de abrir o checkout.</p></div>
+      <div id="packages-grid" class="vip-grid"><div class="loading-card">Carregando pacotes...</div></div>
     </section>
 
     <section id="vips" class="section shell portal-store-section">
@@ -170,14 +177,14 @@
           <div class="map-embed-note">Mapa e dados fornecidos por <a href="https://palworld.gg/pt-BR/map" target="_blank" rel="noopener">Palworld.gg</a>. Caso seu navegador bloqueie a visualização abaixo, use o botão “Abrir mapa em tela cheia”.</div>
         </div>
         <div class="community-grid community-links">
-          <article class="community-card"><span class="eyebrow cyan">COMUNIDADE EXTREME</span><h2>Fale com a equipe</h2><p>Entre nos canais oficiais para tirar dúvidas, acompanhar avisos e fazer parte da comunidade.</p><div class="community-actions"><a class="primary-btn" href="https://discord.gg/avrNQDyGVC" target="_blank" rel="noopener">Entrar no Discord</a><a class="whatsapp-btn" href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener">WhatsApp do servidor ↗</a></div></article>
+          <article class="community-card"><span class="eyebrow cyan">COMUNIDADE EXTREME</span><h2>Fale com a equipe</h2><p>Entre nos canais oficiais para tirar dúvidas, acompanhar avisos e fazer parte da comunidade.</p><div class="community-actions"><a class="primary-btn" href="https://discord.gg/cPZWY6uFA8" target="_blank" rel="noopener noreferrer">Entrar no Discord</a><a class="whatsapp-btn" href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener noreferrer">Entrar no WhatsApp</a></div></article>
           <article class="community-info-card"><span>◈</span><div><b>Mapa sempre atualizado</b><small>Use os filtros do mapa para encontrar o que precisa antes de entrar no servidor.</small></div></article>
         </div>
       </div>
     </section>
   </main>
 
-  <footer><div class="shell footer-grid"><div class="brand"><span class="brand-mark">EW</span><span><b>EXTREME</b> WORLD<small>PALWORLD PORTAL</small></span></div><p>Portal oficial da comunidade Extreme World.</p><div class="footer-links"><a href="https://discord.gg/avrNQDyGVC" target="_blank" rel="noopener">Discord ↗</a><a href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener">WhatsApp ↗</a></div></div></footer>
+  <footer><div class="shell footer-grid"><div class="brand"><span class="brand-mark">EW</span><span><b>EXTREME</b> WORLD<small>PALWORLD PORTAL</small></span></div><p>Portal oficial da comunidade Extreme World.</p><div class="footer-links"><a href="https://discord.gg/cPZWY6uFA8" target="_blank" rel="noopener noreferrer">Entrar no Discord</a><a href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener noreferrer">Entrar no WhatsApp</a></div></div></footer>
 
   <div id="modal" class="modal" hidden><div class="modal-card"><button id="modal-close" class="modal-close">×</button><div id="modal-body"></div></div></div>
   <div id="toast" class="toast" hidden></div>

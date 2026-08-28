@@ -39,6 +39,7 @@ async function loadCatalog(){
   products=productRows||[];
   shopProducts=gameCatalog?.items||[];
   renderVips(vips||[],benefits||[],products);
+  renderPackages(products.filter(product=>product.product_type==='package'));
   renderCoins(products.filter(p=>p.product_type==='currency'));
   renderShop();
   pals=shopProducts.filter(item=>shopCategory(item)==='pals').map(item=>({
@@ -47,19 +48,24 @@ async function loadCatalog(){
   }));
   renderPals();
 }
+function renderPackages(rows){
+  const target=$('#packages-grid');if(!target)return;
+  target.innerHTML=rows.length?rows.map(product=>`<article class="vip-card"><span class="vip-tier">PACOTE DE ENTREGA</span><h3>${esc(product.name)}</h3><img class="package-card-image" src="${esc(product.image_url||'/assets/pacotes-extreme-world.jpg')}" alt="${esc(product.name)}" loading="lazy"><p>${esc(product.description||product.metadata?.quantity_label||'Oferta disponível para entrega no servidor.')}</p><div class="price"><b>${brl(product.price_cents)}</b></div><button class="card-cta" data-package-buy="${product.id}">Comprar pacote</button></article>`).join(''):'<div class="empty-state"><b>Nenhum pacote ativo</b><p>Os pacotes estarão disponíveis aqui quando forem ativados pela equipe.</p></div>';
+  $$('[data-package-buy]').forEach(button=>button.onclick=()=>{const product=products.find(row=>row.id===button.dataset.packageBuy);checkout(product?.id,product?.name)});
+}
 
 function renderGameServerStatus(server,data){
   const card=$(`[data-game-server="${server}"]`);if(!card)return;
-  const status=card.querySelector('[data-server-status]'),players=card.querySelector('[data-server-players]'),serverStatus=card.querySelector('[data-server-state]'),version=card.querySelector('[data-server-version]'),title=card.querySelector('[data-server-title]');
+  const status=card.querySelector('[data-server-status]'),players=card.querySelector('[data-server-players]'),serverStatus=card.querySelector('[data-server-state]'),version=card.querySelector('[data-server-version]'),latency=card.querySelector('[data-server-latency]'),updated=card.querySelector('[data-server-updated]'),title=card.querySelector('[data-server-title]');
   if(data?.online){
     if(title)title.textContent=server===1?'Extreme World sem Wipe':'Extreme World com Wipe';
     status.textContent='Online';status.className='status-badge online';
     players.textContent=data.playersOnline===null?'Online':`${data.playersOnline}${data.playersMax!==null?`/${data.playersMax}`:''}`;
-    serverStatus.textContent='Online';version.textContent=data.version||'Conectado';return;
+    serverStatus.textContent='Online';version.textContent=data.version||'Conectado';if(latency)latency.textContent=data.apiLatencyMs===null?'—':`${data.apiLatencyMs} ms`;if(updated)updated.textContent=`Atualizado: ${new Date(data.updatedAt).toLocaleTimeString('pt-BR')}`;return;
   }
   status.className='status-badge pending';
-  if(data?.status==='not_configured'){status.textContent='Integração pendente';serverStatus.textContent='Aguardando API'}else{status.textContent='Indisponível';serverStatus.textContent='Sem resposta'}
-  players.textContent='—';version.textContent='—';
+  status.textContent='Indisponível';serverStatus.textContent='Sem resposta';
+  players.textContent='—';version.textContent='—';if(latency)latency.textContent='—';if(updated)updated.textContent='Status indisponível no momento';
 }
 async function loadGameServerStatus(){
   const results=await Promise.all([1,2].map(async server=>{try{const response=await fetch(`/api/palworld?server=${server}`,{cache:'no-store'});return [server,await response.json()]}catch{return [server,null]}}));
@@ -150,16 +156,21 @@ function openShopPurchase(item){
 }
 function openCatalogPalPurchase(item){
   const prices=item.metadata?.price_by_level||{};
+  const levelsActive=item.metadata?.pal_levels_active||{};
   const priceFor=level=>Number(prices[level]||0);
   const defaultServer=profile?.default_server===2?2:1;
-  modal(`<span class="eyebrow blue">COMPRAR PAL</span><h2>${esc(item.name)}</h2><p>Classe <b>${esc(item.metadata?.pal_class||'D')}</b>. A entrega é manual por um ADM após o desconto da sua carteira.</p><form id="catalog-pal-buy" class="form"><label>Servidor<select name="server"><option value="1" ${defaultServer===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${defaultServer===2?'selected':''}>Extreme World com Wipe</option></select></label><label>Nível<select name="level"><option value="80">Nível 80 — ${coins(priceFor(80))} MV</option><option value="255">Nível 255 — ${coins(priceFor(255))} MV</option></select><small id="pal-level-note"></small></label><fieldset class="pal-request-fields"><legend>Preferências para entrega</legend><label>Sexo desejado<select name="desiredGender"><option value="any">Sem preferência</option><option value="female">Fêmea</option><option value="male">Macho</option></select></label><label>Passivas desejadas<textarea name="desiredPassives" maxlength="400" placeholder="Ex.: Corredor, Lenda, Ferocidade..."></textarea></label><label>Outras observações<textarea name="deliveryNotes" maxlength="500" placeholder="Descreva aqui qualquer outro detalhe importante para a entrega."></textarea></label><small>Os pedidos dependem da disponibilidade e serão analisados pela equipe.</small></fieldset><button class="full-btn" type="submit"></button></form>`);
+  modal(`<span class="eyebrow blue">COMPRAR PAL</span><h2>${esc(item.name)}</h2><p>Classe <b>${esc(item.metadata?.pal_class||'D')}</b>. Confira o nível e o valor antes de confirmar: a entrega é manual por um ADM após o desconto da carteira.</p><form id="catalog-pal-buy" class="form"><label>Servidor<select name="server"><option value="1" ${defaultServer===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${defaultServer===2?'selected':''}>Extreme World com Wipe</option></select></label><label>Nível<select name="level"><option value="80" data-level-active="${levelsActive[80]!==false}">Nível 80 — ${coins(priceFor(80))} MV</option><option value="255" data-level-active="${levelsActive[255]!==false}">Nível 255 — ${coins(priceFor(255))} MV</option></select><small id="pal-level-note"></small></label><fieldset class="pal-request-fields"><legend>Preferências para entrega</legend><label>Sexo desejado<select name="desiredGender"><option value="any">Sem preferência</option><option value="female">Fêmea</option><option value="male">Macho</option></select></label><label>Passivas desejadas<textarea name="desiredPassives" maxlength="400" placeholder="Ex.: Corredor, Lenda, Ferocidade..."></textarea></label><label>Outras observações<textarea name="deliveryNotes" maxlength="500" placeholder="Descreva aqui qualquer outro detalhe importante para a entrega."></textarea></label><small>Os pedidos dependem da disponibilidade e serão analisados pela equipe.</small></fieldset><button class="full-btn" type="submit"></button></form>`);
   const form=$('#catalog-pal-buy'), serverSelect=form.querySelector('[name="server"]'), levelSelect=form.querySelector('[name="level"]'), note=$('#pal-level-note'), button=form.querySelector('button');
   const syncLevel=()=>{
     const isWipe=Number(serverSelect.value)===2;
+    const level80=levelSelect.querySelector('option[value="80"]');
     const level255=levelSelect.querySelector('option[value="255"]');
-    level255.disabled=isWipe;
-    if(isWipe&&levelSelect.value==='255')levelSelect.value='80';
-    note.textContent=isWipe?'No servidor com Wipe, Pals são entregues somente no nível 80.':'';
+    level80.disabled=level80.dataset.levelActive!=='true';
+    level255.disabled=isWipe||level255.dataset.levelActive!=='true';
+    if(levelSelect.selectedOptions[0]?.disabled){const available=[...levelSelect.options].find(option=>!option.disabled);if(available)levelSelect.value=available.value;}
+    const noneAvailable=[...levelSelect.options].every(option=>option.disabled);
+    note.textContent=noneAvailable?'Nenhum nível deste Pal está disponível no momento.':isWipe?'No servidor com Wipe, Pals são entregues somente no nível 80.':'';
+    button.disabled=noneAvailable;
     button.textContent=`Comprar por ${coins(priceFor(Number(levelSelect.value)))} MV`;
   };
   serverSelect.onchange=syncLevel;levelSelect.onchange=syncLevel;syncLevel();
@@ -297,4 +308,4 @@ function applyAuthState(nextSession){
   else{profile=wallet=null;orders=[];renderAuth()}
 }
 supabase.auth.onAuthStateChange((_event,nextSession)=>setTimeout(()=>applyAuthState(nextSession),0));
-(async()=>{session=await getSharedSession();await Promise.all([loadCatalog(),loadGameServerStatus()]);if(session)await loadAccount();else renderAuth();})();
+(async()=>{session=await getSharedSession();await Promise.all([loadCatalog(),loadGameServerStatus()]);if(session)await loadAccount();else renderAuth();setInterval(loadGameServerStatus,45000);})();

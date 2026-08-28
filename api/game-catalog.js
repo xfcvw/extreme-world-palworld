@@ -6,7 +6,7 @@ const json = (res, status, data) => res.status(status).json(data);
 
 async function loadOverrides() {
   if (!SUPABASE_URL || !SERVICE_ROLE) return [];
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/catalog_price_overrides?select=catalog_key,victory_coins_price,equipment_normal_price,equipment_legendary_price,active`, {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/catalog_price_overrides?select=catalog_key,victory_coins_price,equipment_normal_price,equipment_legendary_price,pal_level_80_price,pal_level_255_price,pal_level_80_active,pal_level_255_active,active`, {
     headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` }
   });
   if (!response.ok) throw new Error('catalog overrides unavailable');
