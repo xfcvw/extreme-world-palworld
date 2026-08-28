@@ -1,30 +1,19 @@
 import { SITE_ORIGIN, getSharedSession, supabase, syncDiscordRole } from '/assets/auth.js';
 
-let session = null, profile = null, wallet = null, orders = [], pals = [], products = [], shopProducts = [], selectedClass = 'ALL', selectedShopCategory = 'all', shopQuery = '', shopPage = 1, coinQuantity = 10;
+let session = null, profile = null, wallet = null, orders = [], pals = [], products = [], shopProducts = [], selectedClass = 'ALL', selectedShopCategory = 'all', shopQuery = '', shopPage = 1, palPage = 1, coinQuantity = 10;
 let mpConfig = null, mp = null, cardFormInstance = null;
 const $ = (s) => document.querySelector(s); const $$ = (s) => [...document.querySelectorAll(s)];
 const brl = (c) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 const coins = (n) => new Intl.NumberFormat('pt-BR').format(Number(n||0));
-const usd = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((Number(c)||0)/100);
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // Fonte única do conteúdo exibido. O banco continua sendo a fonte de verdade
 // para a cobrança: só liberamos o checkout quando o produto cadastrado tiver o
 // mesmo valor deste catálogo.
 const VIP_CATALOG = [
-  {slug:'bronze', tier:'BRONZE', name:'Pacote Bronze', priceCents:1999, accent:'#c57a32', icon:'🥉', items:['Pal nível C','1.000 Moedas de Cachorro','100 Esferas Terra','1 Besta Lendária','1.000 Flechas']},
-  {slug:'prata', tier:'PRATA', name:'Pacote Prata', priceCents:3980, accent:'#b8c3d2', icon:'🥈', items:['Pal nível B','2.000 Moedas de Cachorro','10.000 Moedas de Ouro','100 Esferas Ultra','Armadura Lendária','Escudo Giga']},
-  {slug:'ouro', tier:'OURO', name:'Pacote Ouro', priceCents:4990, accent:'#f4bf35', icon:'🥇', items:['Pal nível A','5.000 Moedas de Cachorro','20.000 Moedas de Ouro','Armadura de Metal Pal Lendária','Fuzil Lendário','500 Balas','100 Esferas Lendárias','Saco de Ração Colossal','Planador Terra']},
-  {slug:'diamante', tier:'DIAMANTE', name:'Pacote Diamante', priceCents:6590, accent:'#50c8ff', icon:'💎', featured:true, items:['Pal nível S','7.000 Moedas de Cachorro','50.000 Moedas de Ouro','Armadura Plástico Leve+ Lendária','Capacete Plástico','1.000 Cartuchos de Energia','Fuzil Laser Lendário','100 Esferas Supremas','Saco de Ração Colossal','Caixa de Acessórios Fantástica','Caixa de Acessórios Milagrosa','Escudo Ultra','Planador Terra','Módulo de Mira 2']}
-];
-const VIP_EXCLUSIVE_BENEFITS = [
-  '1.000 Moedas de Cachorro toda semana enquanto o VIP estiver ativo.',
-  'Na renovação mensal, escolha 1 arma ou 1 armadura do seu pacote.',
-  'Na renovação mensal, escolha um novo Pal da categoria do seu VIP.',
-  'Cargo e categoria exclusiva VIP no Discord, com atendimento diferenciado.',
-  'Recompensas semanais de Provas de Vitória na área VIP do Discord.',
-  'Prioridade em eventos, novidades e futuras vantagens exclusivas.',
-  'VIP Diamante: direito de construir na Árvore do Mundo.'
+  {slug:'vip-inicial', tier:'INICIAL', name:'VIP Inicial', priceCents:1500, accent:'#52d66f', icon:'🟢', items:['Escolha de 1 Pal da categoria D até C','10 Moedas da Vitória','20.000 de Ouro','5.000 Moedas de Cachorro']},
+  {slug:'vip-avancado', tier:'AVANÇADO', name:'VIP Avançado', priceCents:3500, accent:'#50a9ff', icon:'🔵', items:['Escolha de 1 Pal da categoria C até A','15 Moedas da Vitória','30.000 de Ouro','10.000 Moedas de Cachorro','Transferência de 5 packs de até 100 itens entre servidores (não válido para Pals)','5% de desconto em compras acima de R$ 30']},
+  {slug:'vip-extreme', tier:'EXTREME', name:'VIP Extreme', priceCents:6500, accent:'#ff9a35', icon:'🔥👑', featured:true, items:['Escolha de 1 casal de Pals da categoria A até S','Escolha de 1 Vendedor Lendário ou Normal','20 Moedas da Vitória','40.000 de Ouro','20.000 Moedas de Cachorro','Transferência de até 10 packs de 500 itens e até 10 Pals comprados','Pals nível 255 entram como nível 80 no servidor Hard','10% de desconto acima de R$ 50 e 1 cupom exclusivo de 50%','Passe livre em eventos com Bilhete de Batalha','Loot da Torre Mortal Kombat pode ir para o servidor Hard','Pal prêmio do Boss Global pode ir para o servidor Hard no nível 80']}
 ];
 
 function toast(message){const el=$('#toast');el.textContent=message;el.hidden=false;clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.hidden=true,3500)}
@@ -82,9 +71,9 @@ function renderVips(vips, benefits, productRows){
     const dbPlan=vips.find(v=>normalise(v.slug)===plan.slug||normalise(v.name)===normalise(plan.name));
     const product=dbPlan&&productRows.find(p=>p.product_type==='vip'&&p.vip_plan_id===dbPlan.id);
     const checkoutReady=product&&Number(product.price_cents)===plan.priceCents;
-    return `<article class="vip-card vip-official ${plan.featured?'featured':''}" style="--accent:${plan.accent}"><div class="vip-card-top"><span class="vip-tier">${plan.icon} PACOTE ${plan.tier}</span>${plan.featured?'<span class="vip-popular">MAIS COMPLETO</span>':''}</div><h3>${esc(plan.name)}</h3><div class="price"><b>${brl(plan.priceCents)}</b> <span>/ mês</span></div><ul class="benefits vip-item-list">${plan.items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>${checkoutReady?`<button class="card-cta" data-buy="${product.id}" data-name="${esc(plan.name)}">Garantir pacote</button>`:'<button class="card-cta card-cta-muted" data-vip-unavailable="${esc(plan.name)}">Em configuração</button>'}</article>`;
+    return `<article class="vip-card vip-official ${plan.featured?'featured':''}" style="--accent:${plan.accent}"><div class="vip-card-top"><span class="vip-tier">${plan.icon} VIP ${plan.tier}</span>${plan.featured?'<span class="vip-popular">MAIS COMPLETO</span>':''}</div><h3>${esc(plan.name)}</h3><div class="price"><b>${brl(plan.priceCents)}</b> <span>/ mês</span></div><ul class="benefits vip-item-list">${plan.items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>${checkoutReady?`<button class="card-cta" data-buy="${product.id}" data-name="${esc(plan.name)}">Assinar VIP</button>`:'<button class="card-cta card-cta-muted" data-vip-unavailable="${esc(plan.name)}">Em configuração</button>'}</article>`;
   }).join('');
-  $('#vip-extra').innerHTML=`<div class="vip-benefit-panel"><div><span class="eyebrow blue">BENEFÍCIOS CONTÍNUOS</span><h3>Ser VIP vai além do pacote inicial.</h3><p>Enquanto seu VIP estiver ativo, você recebe recompensas e acesso prioritário dentro da comunidade Extreme World.</p></div><ul>${VIP_EXCLUSIVE_BENEFITS.map(benefit=>`<li>✓ <span>${esc(benefit)}</span></li>`).join('')}</ul></div><div class="vip-reasons"><span class="eyebrow blue">POR QUE SER VIP?</span><p>⚡ Evolua mais rápido &nbsp; • &nbsp; 🎁 Receba recompensas contínuas &nbsp; • &nbsp; 🏆 Destaque-se na comunidade</p></div>`;
+  $('#vip-extra').innerHTML=`<div class="vip-benefit-panel vip-renewal"><div><span class="eyebrow blue">BENEFÍCIO DE RENOVAÇÃO</span><h3>Avançado e Extreme renovam suas escolhas.</h3><p>A cada renovação, o membro pode escolher novamente os Pals e itens de transferência, sempre respeitando os limites do plano.</p></div><div class="vip-rule-note"><b>Regras oficiais</b><p>Todos os benefícios, transferências, descontos e recompensas estão sujeitos às regras oficiais do servidor.</p></div></div><div class="vip-price-summary"><span>VIP Inicial <b>R$ 15</b></span><span>VIP Avançado <b>R$ 35</b></span><span>VIP Extreme <b>R$ 65</b></span></div>`;
   $$('[data-buy]').forEach(b=>b.onclick=()=>checkout(b.dataset.buy,b.dataset.name));
   $$('[data-vip-unavailable]').forEach(b=>b.onclick=()=>toast(`${b.dataset.vipUnavailable} está sendo sincronizado com o checkout seguro.`));
 }
@@ -94,11 +83,10 @@ function renderCoins(items){
   const product=items.find(item=>item.product_type==='currency');
   if(!product){$('#coins-grid').innerHTML='<div class="loading-card dark">A compra de Moedas da Vitória está sendo configurada.</div>';return}
   coinQuantity=Math.max(1,Math.min(10000,Math.floor(Number(coinQuantity)||1)));
-  const total=mvPrice(coinQuantity),paypalUsd=Math.round(total/5);
-  $('#coins-grid').innerHTML=`<article class="coin-card unit-coin-card"><div class="coin-icon">🪙</div><span class="eyebrow cyan">COMPRE A QUANTIDADE QUE QUISER</span><h3>${coins(coinQuantity)} Moedas da Vitória</h3><p>R$ 0,50 por moeda. O total é calculado antes do pagamento e as moedas entram na carteira após a aprovação.</p><div class="coin-stepper" aria-label="Quantidade de Moedas da Vitória"><button type="button" data-coin-change="-1" aria-label="Diminuir quantidade">−</button><output>${coins(coinQuantity)} MV</output><button type="button" data-coin-change="1" aria-label="Aumentar quantidade">+</button></div><footer><div><small>Valor total</small><strong>${brl(total)}</strong></div><button class="buy-btn" data-coin="${product.id}">Pix / Cartão</button></footer><button class="paypal-btn" data-paypal="${product.id}">PayPal · ${usd(paypalUsd)}</button></article>`;
+  const total=mvPrice(coinQuantity);
+  $('#coins-grid').innerHTML=`<article class="coin-card unit-coin-card"><div class="coin-icon">🪙</div><span class="eyebrow cyan">COMPRE A QUANTIDADE QUE QUISER</span><h3>${coins(coinQuantity)} Moedas da Vitória</h3><p>R$ 0,50 por moeda. O total é calculado antes do pagamento e as moedas entram na carteira após a aprovação.</p><div class="coin-stepper" aria-label="Quantidade de Moedas da Vitória"><button type="button" data-coin-change="-1" aria-label="Diminuir quantidade">−</button><output>${coins(coinQuantity)} MV</output><button type="button" data-coin-change="1" aria-label="Aumentar quantidade">+</button></div><footer><div><small>Valor total</small><strong>${brl(total)}</strong></div><button class="buy-btn" data-coin="${product.id}">Pix / Cartão</button></footer></article>`;
   $$('[data-coin-change]').forEach(button=>button.onclick=()=>{coinQuantity=Math.max(1,Math.min(10000,coinQuantity+Number(button.dataset.coinChange)));renderCoins(items)});
   $$('[data-coin]').forEach(button=>button.onclick=()=>checkout(button.dataset.coin,`${coins(coinQuantity)} Moedas da Vitória`,coinQuantity));
-  $$('[data-paypal]').forEach(button=>button.onclick=()=>openPaypalCheckout(product,coinQuantity));
 }
 const STORE_CATEGORY_LABELS={pals:'Pal',weapons:'Arma',armor:'Armadura',resources:'Recurso'};
 const STORE_CATEGORY_EMOJIS={pals:'🐾',weapons:'⚔',armor:'🛡',resources:'⛏'};
@@ -111,7 +99,7 @@ function renderShop(){
     const searchable=`${product.name||''} ${product.description||''} ${category}`.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
     return category && (selectedShopCategory==='all'||category===selectedShopCategory) && (!normalizedQuery||searchable.includes(normalizedQuery));
   });
-  const perPage=48, totalPages=Math.max(1,Math.ceil(rows.length/perPage));
+  const perPage=selectedShopCategory==='pals'?20:32, totalPages=Math.max(1,Math.ceil(rows.length/perPage));
   shopPage=Math.min(shopPage,totalPages);
   const visible=rows.slice((shopPage-1)*perPage,shopPage*perPage);
   const count=$('#shop-count');if(count)count.textContent=rows.length?`${coins(rows.length)} itens disponíveis`:'Nenhum item encontrado';
@@ -188,46 +176,17 @@ function openCatalogPalPurchase(item){
 }
 function renderPals(){
   const q=($('#pal-search').value||'').toLowerCase(); const rows=pals.filter(p=>(selectedClass==='ALL'||p.class===selectedClass)&&p.name.toLowerCase().includes(q));
-  $('#pal-grid').innerHTML=rows.length?rows.map(p=>`<article class="pal-card"><span class="pal-class">${esc(p.class)}</span>${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:'<div style="width:62px;height:62px;border-radius:12px;background:#f3f7fd;display:grid;place-items:center">🐲</div>'}<h3>${esc(p.name)}</h3><p>${p.prices.map(x=>`Nv. ${x.level}: ${coins(x.victory_coins)} MV`).join(' · ')}</p><button class="buy-btn" style="margin-top:14px" data-pal="${p.id}">Escolher</button></article>`).join(''):`<div class="empty-state"><b>Catálogo de Pals em preparação</b><p>${pals.length?'Nenhum Pal encontrado nesse filtro.':'A estrutura já está pronta. Os Pals serão cadastrados pelo painel administrativo.'}</p></div>`;
+  const perPage=15,totalPages=Math.max(1,Math.ceil(rows.length/perPage));palPage=Math.min(palPage,totalPages);const visible=rows.slice((palPage-1)*perPage,palPage*perPage);
+  $('#pal-grid').innerHTML=visible.length?visible.map(p=>`<article class="pal-card"><span class="pal-class">${esc(p.class)}</span>${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}">`:'<div style="width:62px;height:62px;border-radius:12px;background:#f3f7fd;display:grid;place-items:center">🐲</div>'}<h3>${esc(p.name)}</h3><p>${p.prices.map(x=>`Nv. ${x.level}: ${coins(x.victory_coins)} MV`).join(' · ')}</p><button class="buy-btn" style="margin-top:14px" data-pal="${p.id}">Escolher</button></article>`).join(''):`<div class="empty-state"><b>Catálogo de Pals em preparação</b><p>${pals.length?'Nenhum Pal encontrado nesse filtro.':'A estrutura já está pronta. Os Pals serão cadastrados pelo painel administrativo.'}</p></div>`;
+  const pagination=$('#pal-pagination');if(pagination)pagination.innerHTML=rows.length>perPage?`<button data-pal-page="${palPage-1}" ${palPage===1?'disabled':''}>← Anterior</button><span>Página ${palPage} de ${totalPages}</span><button data-pal-page="${palPage+1}" ${palPage===totalPages?'disabled':''}>Próxima →</button>`:'';
   $$('[data-pal]').forEach(b=>b.onclick=()=>openPal(pals.find(p=>p.id===b.dataset.pal)));
+  $$('[data-pal-page]').forEach(button=>button.onclick=()=>{palPage=Number(button.dataset.palPage);renderPals();$('#pals').scrollIntoView({behavior:'smooth'})});
 }
-$('#pal-search').oninput=renderPals;$$('#class-filters button').forEach(b=>b.onclick=()=>{$$('#class-filters button').forEach(x=>x.classList.remove('active'));b.classList.add('active');selectedClass=b.dataset.class;renderPals()});
+$('#pal-search').oninput=()=>{palPage=1;renderPals()};$$('#class-filters button').forEach(b=>b.onclick=()=>{$$('#class-filters button').forEach(x=>x.classList.remove('active'));b.classList.add('active');selectedClass=b.dataset.class;palPage=1;renderPals()});
 
 async function getMpConfig(){
   if(mpConfig)return mpConfig;
   const r=await fetch('/api/config',{cache:'no-store'});mpConfig=await r.json();return mpConfig;
-}
-async function loadPaypalSdk(clientId){
-  if(window.paypal)return window.paypal;
-  await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&components=buttons`;script.onload=resolve;script.onerror=()=>reject(new Error('Não foi possível carregar o PayPal.'));document.head.appendChild(script)});
-  return window.paypal;
-}
-async function openPaypalCheckout(product,currencyQuantity=0){
-  if(!product)return toast('Compra de moedas indisponível.');
-  if(!session){toast('Entre com Discord para comprar Moedas da Vitória.');signIn();return}
-  if(!profile?.palworld_nickname)return openOnboarding();
-  const cfg=await getMpConfig();
-  if(!cfg.paypalEnabled||!cfg.paypalClientId)return toast('O PayPal ainda está em configuração.');
-  const paypalUsd=Math.round(mvPrice(currencyQuantity)/5);
-  if(paypalUsd<100)return toast('No PayPal, a compra mínima é de 10 MV (US$ 1,00).');
-  modal(`<span class="eyebrow blue">PAGAMENTO INTERNACIONAL</span><h2>${coins(currencyQuantity)} Moedas da Vitória</h2><p>Você pagará <b>${usd(paypalUsd)}</b> pelo PayPal. As moedas entram automaticamente na carteira após a aprovação.</p><div id="paypal-button-container" class="paypal-box"><div class="payment-loading">Carregando PayPal...</div></div>`);
-  try{
-    const paypal=await loadPaypalSdk(cfg.paypalClientId);
-    $('#paypal-button-container').innerHTML='';
-    await paypal.Buttons({
-      style:{layout:'vertical',color:'gold',shape:'rect',label:'paypal'},
-      createOrder:async()=>{
-        const response=await fetch('/api/paypal-create-order',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({productId:product.id,currencyQuantity})});
-        const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Não foi possível iniciar o PayPal.');return data.paypalOrderId;
-      },
-      onApprove:async data=>{
-        const response=await fetch('/api/paypal-capture-order',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({paypalOrderId:data.orderID})});
-        const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Não foi possível concluir o pagamento.');
-        closeModal();toast(result.status==='approved'?'Pagamento aprovado: suas moedas já foram adicionadas.':'Pagamento em processamento.');await loadAccount();
-      },
-      onError:error=>toast(error?.message||'O PayPal não concluiu o pagamento.')
-    }).render('#paypal-button-container');
-  }catch(error){$('#paypal-button-container').innerHTML=`<div class="payment-warning">${esc(error.message)}</div>`}
 }
 async function loadMpSdk(){
   if(window.MercadoPago)return;

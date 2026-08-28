@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="/assets/styles.css" />
   <link rel="stylesheet" href="/assets/currency.css" />
   <link rel="stylesheet" href="/assets/community-map.css" />
+  <link rel="stylesheet" href="/assets/vips-new.css" />
   <style>.portal-page .vip-card .price b{color:#fff!important;text-shadow:0 1px 12px rgba(255,255,255,.16)}.portal-page .modal-card{background:#f8fbff;color:#15253b}.portal-page .modal-card h2{color:#10223d}.portal-page .modal-card .eyebrow{color:#1267ff}.portal-page .modal-card .form label,.portal-page .modal-card fieldset,.portal-page .modal-card legend{color:#23354f}.portal-page .modal-card .form input,.portal-page .modal-card .form select,.portal-page .modal-card .form textarea{background:#fff;color:#15253b;border-color:#a9bdd7}.portal-page .modal-card .form small{color:#5c708e}.portal-page .modal-close{color:#10223d}</style>
 </head>
 <body class="portal-page">
@@ -28,6 +29,7 @@
       <a href="#vips">Pacotes</a>
       <a href="#loja">Loja</a>
       <a href="#mapa">Mapa</a>
+      <a href="/tickets.html">Tickets</a>
       <a id="admin-nav-link" href="/admin.html" hidden>Admin</a>
       <a href="/perfil.html">Jogador</a>
     </nav>
@@ -47,7 +49,7 @@
           <div class="portal-hero-copy">
             <span class="eyebrow cyan">SERVIDORES, LOJA E COMUNIDADE</span>
             <h1>Extreme World<br><em>Palworld Portal</em></h1>
-            <p>Seu ponto central para comprar VIPs, gerenciar Moedas da Vitória, acompanhar pedidos e acessar sua conta do servidor.</p>
+            <p>Seu ponto central para assinar VIPs, gerenciar Moedas da Vitória, acompanhar pedidos e acessar sua conta do servidor.</p>
             <div class="hero-actions">
               <a class="primary-btn" href="#loja">Abrir MarketPlace</a>
               <a class="secondary-btn direct-login" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Conectar Discord</a>
@@ -62,7 +64,7 @@
           <p>Loja, carteira, pedidos e sua identidade no Palworld conectados à mesma conta Discord.</p>
           <div class="portal-metrics">
             <article><span>Servidores</span><b>2</b></article>
-            <article><span>Pacotes</span><b>4</b></article>
+            <article><span>VIPs</span><b>3</b></article>
             <article><span>Loja</span><b>24/7</b></article>
           </div>
           <a class="portal-inline-link" href="/perfil.html">Abrir Central do Jogador →</a>
@@ -78,7 +80,7 @@
       <div class="portal-feature-grid">
         <article class="portal-info-card"><div class="portal-card-icon blue">◉</div><h3>Como começar</h3><p>Conecte o Discord, informe seu NickName e selecione seu servidor principal.</p><a href="/perfil.html">Configurar conta →</a></article>
         <article class="portal-info-card"><div class="portal-card-icon gold">▣</div><h3>Carteira pessoal</h3><p>Moedas da Vitória compradas entram automaticamente no seu banco pessoal após aprovação.</p><a href="#moedas">Comprar moedas →</a></article>
-        <article class="portal-info-card"><div class="portal-card-icon green">♜</div><h3>Pedidos e entrega</h3><p>VIPs e Pals entram em uma fila organizada para os ADMs realizarem a entrega manual.</p><a href="/perfil.html">Acompanhar pedidos →</a></article>
+        <article class="portal-info-card"><div class="portal-card-icon green">♜</div><h3>Pedidos e suporte</h3><p>Abra um ticket de compra ou suporte e acompanhe a resposta da equipe pelo portal.</p><a href="/tickets.html">Abrir ticket →</a></article>
       </div>
     </section>
 
@@ -125,10 +127,10 @@
 
     <section id="vips" class="section shell portal-store-section">
       <div class="section-head portal-section-head">
-        <div><span class="eyebrow blue">BENEFÍCIOS EXCLUSIVOS</span><h2>Pacotes Extreme World</h2></div>
-        <p>Escolha o pacote que combina com seu estilo de jogo e acompanhe a compra pelo portal.</p>
+        <div><span class="eyebrow blue">NOVOS VIPS</span><h2>Novos VIPs: Extreme World</h2></div>
+        <p>Três níveis de benefícios para evoluir, transferir itens e participar dos eventos da comunidade.</p>
       </div>
-      <div class="vip-art-frame"><img src="/assets/pacotes-extreme-world.jpg" alt="Pacotes Únicos Extreme World" loading="lazy"></div>
+      <div class="vip-art-frame"><img src="/assets/novos-vips-extreme-world.webp" alt="Novos VIPs Extreme World: Inicial, Avançado e Extreme" loading="lazy"></div>
       <div id="vip-grid" class="vip-grid"><div class="loading-card">Carregando VIPs...</div></div>
       <div id="vip-extra" class="vip-extra"><div class="loading-card">Carregando benefícios...</div></div>
     </section>
@@ -154,6 +156,7 @@
         <label class="search-field"><span>⌕</span><input id="pal-search" placeholder="Buscar Pal..." /></label>
       </div>
       <div id="pal-grid" class="pal-grid"></div>
+      <div id="pal-pagination" class="shop-pagination" aria-label="Paginação dos Pals"></div>
     </section>
 
     <section id="mapa" class="community-section map-section">

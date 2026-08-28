@@ -9,13 +9,7 @@ Projeto independente da loja Extreme World.
 - `api/webhook.js`: valida webhook Mercado Pago e credita moedas / cria fila de entrega
 
 ## Variáveis na Vercel
-Use `.env.example` como referência. Nunca publique `SUPABASE_SERVICE_ROLE_KEY`, `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_WEBHOOK_SECRET` ou `PAYPAL_CLIENT_SECRET` no frontend.
-
-## PayPal internacional
-
-O PayPal é usado apenas para comprar pacotes de Moedas da Vitória em USD. A loja de Pals, armas, armaduras, recursos e esferas usa exclusivamente o saldo de Moedas da Vitória.
-
-Na Vercel, configure `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` e `PAYPAL_ENV` (`sandbox` para testes ou `live` para produção). O Client Secret permanece somente nas funções da Vercel.
+Use `.env.example` como referência. Nunca publique `SUPABASE_SERVICE_ROLE_KEY`, `MERCADO_PAGO_ACCESS_TOKEN` ou `MERCADO_PAGO_WEBHOOK_SECRET` no frontend.
 
 ## Supabase
 Projeto: `Extreme World Palworld`

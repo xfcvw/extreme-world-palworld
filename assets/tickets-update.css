@@ -1,0 +1,4 @@
+.ticket-status.answered{background:#3b245f;color:#d6b4ff}
+.ticket-description{margin:16px 0;padding:14px;border-left:3px solid #3a91ff;border-radius:10px;background:#0a1825}
+.ticket-description b{color:#71b9ff;font-size:11px;text-transform:uppercase}
+.ticket-description p{margin:7px 0 0;color:#e9f4ff;white-space:pre-wrap}

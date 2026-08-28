@@ -1,0 +1,11 @@
+.portal-page .vip-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.portal-page .vip-card{min-height:590px}
+.portal-page .vip-grid .vip-card:nth-child(3){min-height:720px}
+.vip-renewal{grid-template-columns:1.15fr .85fr}
+.vip-rule-note{padding:18px;border:1px solid #294761;border-radius:14px;background:#0a1928}
+.vip-rule-note b{color:#ffd369}
+.vip-rule-note p{margin:8px 0 0}
+.vip-price-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.vip-price-summary span{display:flex;justify-content:space-between;gap:10px;padding:15px 17px;border:1px solid #2b4259;border-radius:13px;background:#0d1b2a;color:#c7d5e4;font-size:12px;font-weight:800}
+.vip-price-summary b{color:#fff;font-size:16px}
+@media(max-width:980px){.portal-page .vip-grid{grid-template-columns:1fr}.portal-page .vip-card,.portal-page .vip-grid .vip-card:nth-child(3){min-height:0;padding-bottom:86px}.vip-renewal,.vip-price-summary{grid-template-columns:1fr}}
