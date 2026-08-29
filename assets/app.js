@@ -39,7 +39,7 @@ async function loadCatalog(){
   products=productRows||[];
   shopProducts=gameCatalog?.items||[];
   renderVips(vips||[],benefits||[],products);
-  renderPackages(products.filter(product=>product.product_type==='package'));
+  renderPackages(products.filter(product=>product.product_type==='package'&&product.metadata?.package_bundle===true));
   renderCoins(products.filter(p=>p.product_type==='currency'));
   renderShop();
   pals=shopProducts.filter(item=>shopCategory(item)==='pals').map(item=>({
@@ -50,7 +50,8 @@ async function loadCatalog(){
 }
 function renderPackages(rows){
   const target=$('#packages-grid');if(!target)return;
-  target.innerHTML=rows.length?rows.map(product=>`<article class="vip-card"><span class="vip-tier">PACOTE DE ENTREGA</span><h3>${esc(product.name)}</h3><img class="package-card-image" src="${esc(product.image_url||'/assets/pacotes-extreme-world.jpg')}" alt="${esc(product.name)}" loading="lazy"><p>${esc(product.description||product.metadata?.quantity_label||'Oferta disponível para entrega no servidor.')}</p><div class="price"><b>${brl(product.price_cents)}</b></div><button class="card-cta" data-package-buy="${product.id}">Comprar pacote</button></article>`).join(''):'<div class="empty-state"><b>Nenhum pacote ativo</b><p>Os pacotes estarão disponíveis aqui quando forem ativados pela equipe.</p></div>';
+  const order=value=>Number(value.metadata?.display_order||999);
+  target.innerHTML=rows.length?rows.sort((a,b)=>order(a)-order(b)).map(product=>`<article class="vip-card ${product.featured?'featured':''}"><span class="vip-tier">PACOTE CLÁSSICO</span><h3>${esc(product.name)}</h3><div class="price"><b>${brl(product.price_cents)}</b></div><ul class="benefits vip-item-list">${(Array.isArray(product.metadata?.benefits)?product.metadata.benefits:[]).map(benefit=>`<li>${esc(benefit)}</li>`).join('')}</ul><button class="card-cta" data-package-buy="${product.id}">Comprar pacote</button></article>`).join(''):'<div class="empty-state"><b>Nenhum pacote ativo</b><p>Os pacotes estarão disponíveis aqui quando forem ativados pela equipe.</p></div>';
   $$('[data-package-buy]').forEach(button=>button.onclick=()=>{const product=products.find(row=>row.id===button.dataset.packageBuy);checkout(product?.id,product?.name)});
 }
 
