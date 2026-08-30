@@ -56,15 +56,9 @@ const catalogPaginationState = {
   weapons: { page: 1, query: "" },
   resources: { page: 1, query: "" },
 };
-const activityConsoleState = { server: "all", status: "all", query: "", page: 1 };
+const activityConsoleState = { server: "all", query: "", page: 1 };
 const activityServerLabel = (number) => Number(number) === 2 ? "Com Wipe" : "Sem Wipe";
-const activityStatusLabel = (status) => ({ online: "Online", normal: "Normal", attention: "Atenção", critical: "Próximo do decay" })[status] || "Observado";
-const activityDate = (value) => value ? new Date(value).toLocaleString("pt-BR") : "Não registrado";
-const activityAge = (value) => {
-  if (!value) return "sem histórico";
-  const hours = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 36e5));
-  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
-};
+const activityDate = (value) => value ? new Date(value).toLocaleString("pt-BR") : "Ainda não sincronizado";
 const toast = (t) => {
   let el = document.querySelector("#admin-toast");
   if (!el) {
@@ -357,6 +351,32 @@ function enhanceActivityConsole(activity) {
   draw();
 }
 
+function enhanceSyncConsole(sync, profileByUser) {
+  const target = document.querySelector("#player-activity");
+  if (!target) return;
+  const bindings = Array.isArray(sync?.bindings) ? sync.bindings : [];
+  const draw = () => {
+    const matching = bindings.filter((binding) => {
+      const player = profileByUser.get(binding.user_id);
+      const searchText = `${player?.display_name || ""} ${player?.discord_username || ""} ${binding.character_name || ""} ${binding.nickname || ""} ${binding.player_id || ""}`;
+      return (activityConsoleState.server === "all" || String(binding.server_number) === activityConsoleState.server) && (!activityConsoleState.query || normalize(searchText).includes(normalize(activityConsoleState.query)));
+    });
+    const perPage = 12;
+    const totalPages = Math.max(1, Math.ceil(matching.length / perPage));
+    activityConsoleState.page = Math.min(activityConsoleState.page, totalPages);
+    const visible = matching.slice((activityConsoleState.page - 1) * perPage, activityConsoleState.page * perPage);
+    target.innerHTML = `<div class="profile-section-title"><div><span class="eyebrow cyan">DADOS DO PORTAL</span><h3>Últimas sincronizações</h3><p class="admin-panel-note">Dados já guardados pelo site quando um personagem é sincronizado. Isso não registra entradas ou saídas no servidor.</p></div><span class="admin-status">${bindings.length} vínculo${bindings.length === 1 ? "" : "s"}</span></div><div class="activity-toolbar"><label>Buscar jogador<input data-sync-query placeholder="Jogador, NickName ou ID"></label><label>Servidor<select data-sync-server><option value="all">Todos</option><option value="1">Sem Wipe</option><option value="2">Com Wipe</option></select></label></div><div class="activity-list">${visible.length ? visible.map((binding) => { const player = profileByUser.get(binding.user_id); const portalName = player?.display_name || player?.discord_username || "Jogador do portal"; return `<article class="activity-row"><div><span class="admin-store-kind">${activityServerLabel(binding.server_number)}</span><b>${esc(binding.character_name || binding.nickname || portalName)}</b><small>${esc(portalName)} · ID: ${esc(binding.player_id)}</small></div><div><small>Última sincronização do site</small><b>${esc(activityDate(binding.last_synced_at))}</b><small>${binding.level != null ? `Nível ${esc(binding.level)}` : "Nível não informado"}${binding.guild ? ` · ${esc(binding.guild)}` : ""}</small></div><div><small>Última conexão informada</small><b>${esc(binding.last_connection || "Não disponível")}</b></div></article>`; }).join("") : '<div class="admin-empty">Nenhum personagem vinculado ao portal neste filtro.</div>'}</div><div class="activity-pagination"><span>${matching.length} resultado${matching.length === 1 ? "" : "s"} · Página ${activityConsoleState.page} de ${totalPages}</span><div><button class="secondary-btn" data-sync-page="prev" ${activityConsoleState.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-sync-page="next" ${activityConsoleState.page === totalPages ? "disabled" : ""}>Próxima →</button></div></div>`;
+    const query = target.querySelector("[data-sync-query]");
+    const server = target.querySelector("[data-sync-server]");
+    query.value = activityConsoleState.query;
+    server.value = activityConsoleState.server;
+    query.oninput = (event) => { activityConsoleState.query = event.target.value; activityConsoleState.page = 1; draw(); };
+    server.onchange = (event) => { activityConsoleState.server = event.target.value; activityConsoleState.page = 1; draw(); };
+    target.querySelectorAll("[data-sync-page]").forEach((button) => button.onclick = () => { activityConsoleState.page += button.dataset.syncPage === "next" ? 1 : -1; draw(); });
+  };
+  draw();
+}
+
 function enhanceTicketConsole(
   ticketRows,
   ticketMessagesByTicket,
@@ -536,8 +556,8 @@ async function render() {
       .select("*")
       .order("created_at", { ascending: true })
       .limit(1500),
-    fetch("/api/palworld?mode=admin-activity", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("activity unavailable")))
+    fetch("/api/palworld?mode=admin-sync", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("sync unavailable")))
       .catch(() => null),
   ]);
   const pending = (orders || []).filter((o) =>
@@ -685,7 +705,7 @@ async function render() {
       }),
   );
   ["pals", "armor", "weapons", "resources"].forEach(enhanceCatalogPagination);
-  enhanceActivityConsole(activityResponse);
+  enhanceSyncConsole(activityResponse, profileByUser);
   const applyTicketFilters = () => {
     const category =
         document.querySelector("#ticket-category-filter")?.value || "all",
