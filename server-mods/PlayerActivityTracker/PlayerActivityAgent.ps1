@@ -61,7 +61,7 @@ function Submit-Activity($Current, $Previous) {
     foreach ($id in $Previous.Keys) { if (-not $Current.ContainsKey($id)) { $leaves += $Previous[$id] } }
   }
   $body = @{ serverNumber = [int]$ServerNumber; players = @($Current.Values); joins = @($joins); leaves = @($leaves) } | ConvertTo-Json -Depth 5 -Compress
-  $response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "$($SiteUrl.TrimEnd('/'))/api/player-activity" -Headers $headers -ContentType "application/json" -Body $body
+  $response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "$($SiteUrl.TrimEnd('/'))/api/palworld?mode=activity" -Headers $headers -ContentType "application/json" -Body $body
   Write-Host "[$([DateTime]::Now.ToString('HH:mm:ss'))] Servidor $ServerNumber: $($response.online) online · +$($response.joins) / -$($response.leaves)"
 }
 
