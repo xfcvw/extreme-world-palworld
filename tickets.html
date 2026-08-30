@@ -5,10 +5,16 @@
   <title>Extreme World | Tickets</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Rajdhani:wght@700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/tickets.css"><link rel="stylesheet" href="/assets/tickets-update.css">
+  <link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/tickets.css">
 </head>
-<body class="profile-page ticket-page">
+<body class="ticket-page">
   <header class="topbar portal-topbar"><a class="brand" href="/"><span class="brand-mark">EW</span><span><b>EXTREME</b> WORLD<small>PALWORLD PORTAL</small></span></a><nav><a href="/">Home</a><a href="/#marketplace">MarketPlace</a><a href="/perfil.html">Jogador</a><a href="/tickets.html">Tickets</a></nav><div class="account-actions"><a class="ghost-btn" href="/perfil.html">Minha conta</a></div></header>
-  <main class="ticket-main shell"><section class="ticket-hero"><div><span class="eyebrow cyan">ATENDIMENTO EXTREME</span><h1>Central de Tickets</h1><p>Abra um chamado para suporte ou compra e acompanhe a resposta da equipe pelo portal.</p><div class="community-actions"><a class="secondary-btn" href="https://discord.gg/cPZWY6uFA8" target="_blank" rel="noopener noreferrer">Entrar no Discord</a><a class="whatsapp-btn" href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener noreferrer">Entrar no WhatsApp</a></div></div><a class="secondary-btn" href="/">Voltar ao portal</a></section><section id="ticket-root" class="ticket-root"><div class="admin-loading">Carregando seus tickets...</div></section></main><div id="toast" class="toast" hidden></div><script type="module" src="/assets/tickets.js"></script>
+  <main class="ticket-main shell">
+    <section class="ticket-hero">
+      <div class="ticket-hero-copy"><div class="ticket-hero-symbol">✦</div><div><span class="eyebrow cyan">ATENDIMENTO EXTREME</span><h1>Central de Tickets</h1><p>Abra um chamado de suporte ou compra e acompanhe todas as respostas por aqui.</p></div></div>
+      <div class="ticket-hero-actions"><div class="ticket-contact-links"><a href="https://discord.gg/cPZWY6uFA8" target="_blank" rel="noopener noreferrer">Discord</a><a href="https://chat.whatsapp.com/CWWDIB0v9jc5VasWT0LHp2" target="_blank" rel="noopener noreferrer">WhatsApp</a></div><a class="ticket-back-link" href="/">← Voltar ao portal</a></div>
+    </section>
+    <section id="ticket-root" class="ticket-root"><div class="ticket-loading">Carregando seus tickets...</div></section>
+  </main><div id="toast" class="toast" hidden></div><script type="module" src="/assets/tickets.js"></script>
 </body>
 </html>
