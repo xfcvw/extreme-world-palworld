@@ -1,8 +1,4 @@
 const ALLOWED_HOST = 'palworld.gg';
-const CATEGORY_FALLBACK_IMAGES = Object.freeze({
-  weapons: 'https://palworld.gg/_ipx/q_80%26s_58x58/images/items/T_itemicon_Weapon_SkyBow.png',
-  armor: 'https://palworld.gg/_ipx/q_80%26s_58x58/images/items/T_itemicon_Armor_AncientArmor.png'
-});
 
 function allowedSource(url) {
   return url.protocol === 'https:' && url.hostname === ALLOWED_HOST && url.pathname.includes('/images/items/');
@@ -32,11 +28,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let image = await loadImage(source);
-    if (!image) {
-      const fallbackUrl = CATEGORY_FALLBACK_IMAGES[String(req.query?.fallback || '')];
-      if (fallbackUrl) image = await loadImage(new URL(fallbackUrl));
-    }
+    const image = await loadImage(source);
     if (!image) return res.status(404).json({ error: 'Imagem indisponível.' });
     res.setHeader('Content-Type', image.type);
     res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
