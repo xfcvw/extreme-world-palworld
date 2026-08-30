@@ -12,6 +12,7 @@ function firstNumber(source,keys){for(const key of keys){const value=asNumber(so
 function firstText(source,keys){for(const key of keys){const value=source?.[key];if(value!==undefined&&value!==null&&String(value).trim())return String(value).trim()}return ''}
 function makeBaseUrl(value){try{const url=new URL(String(value||''));return ['http:','https:'].includes(url.protocol)?url.href.replace(/\/+$/,''):null}catch{return null}}
 function normalized(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()}
+function profileNickname(profile,server){return String(profile?.[`palworld_nickname_server_${server}`]||profile?.palworld_nickname||'').trim()}
 
 async function readApi(baseUrl,credentials,path){
   const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),7000),started=Date.now();
@@ -44,33 +45,71 @@ function safeCharacter(row,server){
   return {server,characterName:firstText(row,['name','playerName','nickname','nickName']),level:firstNumber(row,['level','playerLevel']),guild:firstText(row,['guildName','guild','guild_name']),lastConnection:firstText(row,['lastOnline','last_online','lastLogin','last_login']),playerId:firstText(row,['playerId','player_id','uid']),ping:firstNumber(row,['ping','latency'])};
 }
 
+function serviceHeaders(extra={}){return {apikey:SERVICE_ROLE,Authorization:`Bearer ${SERVICE_ROLE}`,...extra}}
+async function readPlayerBindings(userId){
+  if(!SUPABASE_URL||!SERVICE_ROLE)return [];
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?user_id=eq.${encodeURIComponent(userId)}&select=*&order=server_number.asc`,{headers:serviceHeaders()});
+  if(!response.ok){console.error('[palworld-player] binding read failed',{status:response.status});return []}
+  const rows=await response.json().catch(()=>[]);
+  return Array.isArray(rows)?rows:[];
+}
+async function savePlayerBinding(userId,character){
+  if(!SUPABASE_URL||!SERVICE_ROLE||!character?.playerId)return null;
+  const now=new Date().toISOString();
+  const payload={user_id:userId,server_number:character.server,player_id:character.playerId,nickname:character.characterName||'Jogador',character_name:character.characterName||null,level:character.level,guild:character.guild||null,last_connection:character.lastConnection||null,last_seen_at:now,last_synced_at:now};
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?on_conflict=user_id,server_number`,{method:'POST',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(payload)});
+  if(!response.ok){console.error('[palworld-player] binding save failed',{server:character.server,status:response.status});return null}
+  const rows=await response.json().catch(()=>[]);
+  return rows?.[0]||payload;
+}
+function characterFromBinding(binding,server){
+  if(!binding)return null;
+  return {server,characterName:binding.character_name||binding.nickname||'',level:binding.level??null,guild:binding.guild||'',lastConnection:binding.last_connection||'',playerId:binding.player_id||'',lastSyncedAt:binding.last_synced_at||null,source:'snapshot'};
+}
+
 async function authenticatedProfile(req){
   const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
   if(!token||!SUPABASE_URL||!PUBLISHABLE||!SERVICE_ROLE)return null;
   const userResponse=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:PUBLISHABLE,Authorization:`Bearer ${token}`}});
   const user=await userResponse.json().catch(()=>null);
   if(!userResponse.ok||!user?.id)return null;
-  const profileResponse=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(user.id)}&select=palworld_nickname,default_server`,{headers:{apikey:SERVICE_ROLE,Authorization:`Bearer ${SERVICE_ROLE}`}});
+  const profileResponse=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(user.id)}&select=palworld_nickname,palworld_nickname_server_1,palworld_nickname_server_2,default_server`,{headers:{apikey:SERVICE_ROLE,Authorization:`Bearer ${SERVICE_ROLE}`}});
   const profiles=await profileResponse.json().catch(()=>[]);
-  return profiles?.[0]||null;
+  return {userId:user.id,profile:profiles?.[0]||null};
 }
 
 async function currentPlayer(req,res){
-  const profile=await authenticatedProfile(req);
-  if(!profile)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'},{privateResponse:true});
+  const account=await authenticatedProfile(req);
+  if(!account?.profile)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'},{privateResponse:true});
+  const {userId,profile}=account;
   const nickname=String(profile.palworld_nickname||'').trim();
-  if(!nickname)return json(res,200,{found:false,reason:'nickname_required',message:'Cadastre seu NickName do Palworld para sincronizar seu personagem.'},{privateResponse:true});
   const preferred=Number(profile.default_server)===2?2:1;
   const numbers=[preferred,preferred===1?2:1];
-  const results=await Promise.all(numbers.map(number=>fetchServer(number,{withPlayers:true})));
-  const characters=[];
+  const [savedBindings,results]=await Promise.all([readPlayerBindings(userId),Promise.all(numbers.map(number=>fetchServer(number,{withPlayers:true})))]);
+  const bindings=new Map(savedBindings.map(binding=>[Number(binding.server_number),binding]));
+  const characters=[],serverLinks=[];
   for(const result of results){
-    if(!result.online)continue;
-    const row=playerRows(result.playersResult?.data).find(player=>normalized(firstText(player,['name','playerName','nickname','nickName']))===normalized(nickname));
-    const character=safeCharacter(row,result.server);if(character)characters.push(character);
+    let binding=bindings.get(result.server)||null;
+    const rows=result.online?playerRows(result.playersResult?.data):[];
+    let liveRow=null;
+    if(binding){
+      liveRow=rows.find(player=>firstText(player,['playerId','player_id','uid'])===String(binding.player_id));
+    }else if(profileNickname(profile,result.server)){
+      const matches=rows.filter(player=>normalized(firstText(player,['name','playerName','nickname','nickName']))===normalized(profileNickname(profile,result.server)));
+      if(matches.length===1)liveRow=matches[0];
+    }
+    let character=liveRow?safeCharacter(liveRow,result.server):characterFromBinding(binding,result.server);
+    if(liveRow&&character?.playerId){
+      const saved=await savePlayerBinding(userId,character);
+      if(saved){binding=saved;bindings.set(result.server,saved);character={...character,lastSyncedAt:saved.last_synced_at||new Date().toISOString(),source:'live'};}
+    }
+    const linked=Boolean(binding);
+    if(character)characters.push(character);
+    serverLinks.push({server:result.server,linked,online:Boolean(liveRow),serverAvailable:result.online,nickname:binding?.nickname||profileNickname(profile,result.server),character:character||null,lastSyncedAt:character?.lastSyncedAt||binding?.last_synced_at||null});
   }
   const unavailable=results.every(result=>!result.online);
-  return json(res,200,{found:characters.length>0,unavailable,nickname,characters,servers:results.map(({playersResult,...server})=>server),updatedAt:new Date().toISOString(),message:unavailable?'Não foi possível sincronizar seus dados no momento. Tente novamente em instantes.':characters.length?'':'Seu personagem ainda não foi localizado entre os jogadores consultados. Confira se o NickName salvo no portal é igual ao do jogo.'},{privateResponse:true});
+  const linkedCount=serverLinks.filter(link=>link.linked).length;
+  return json(res,200,{found:characters.length>0,unavailable,nickname,characters,serverLinks,servers:results.map(({playersResult,...server})=>server),updatedAt:new Date().toISOString(),message:unavailable&&linkedCount===0?'Não foi possível sincronizar seus dados no momento. Tente novamente em instantes.':linkedCount===2?'Seus dois personagens estão vinculados. O portal mantém a última leitura mesmo quando você está offline.':linkedCount?'Seu personagem foi vinculado em um servidor. Entre no outro servidor uma vez para criar o segundo vínculo.':nickname?'Entre uma vez em cada servidor com o NickName configurado. Depois disso, não será necessário ficar online para vê-los aqui.':'Cadastre seu NickName do Palworld para iniciar a vinculação.'},{privateResponse:true});
 }
 
 export default async function handler(req,res){
