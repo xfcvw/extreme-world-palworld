@@ -365,3 +365,34 @@
     font-size: 26px;
   }
 }
+.admin-catalog-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px 0;
+  border-top: 1px solid #29465f;
+  color: #93aec5;
+  font-size: 11px;
+}
+.admin-catalog-pagination > div {
+  display: flex;
+  gap: 8px;
+}
+.admin-catalog-pagination .secondary-btn {
+  padding: 8px 11px;
+  font-size: 10px;
+}
+@media (max-width: 620px) {
+  .admin-catalog-pagination {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-catalog-pagination > div {
+    width: 100%;
+  }
+  .admin-catalog-pagination .secondary-btn {
+    flex: 1;
+  }
+}

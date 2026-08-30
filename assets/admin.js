@@ -50,6 +50,12 @@ let ticketConsoleState = {
   page: 1,
   selectedId: null,
 };
+const catalogPaginationState = {
+  pals: { page: 1, query: "" },
+  armor: { page: 1, query: "" },
+  weapons: { page: 1, query: "" },
+  resources: { page: 1, query: "" },
+};
 const toast = (t) => {
   let el = document.querySelector("#admin-toast");
   if (!el) {
@@ -266,6 +272,49 @@ async function replyToTicket(ticketId, form) {
     .eq("id", ticketId);
   toast("Resposta enviada ao jogador.");
   await render();
+}
+
+function enhanceCatalogPagination(category) {
+  const section = document.querySelector(`#catalog-${category}`);
+  const list = section?.querySelector(`[data-catalog-list="${category}"]`);
+  const search = section?.querySelector(`[data-catalog-search="${category}"]`);
+  if (!section || !list || !search) return;
+
+  const items = [...list.querySelectorAll("[data-catalog-name]")];
+  if (!items.length) return;
+  const state = catalogPaginationState[category];
+  const controls = document.createElement("div");
+  controls.className = "admin-catalog-pagination";
+  list.insertAdjacentElement("afterend", controls);
+
+  const draw = () => {
+    const perPage = 12;
+    const matchingItems = items.filter((item) =>
+      normalize(item.dataset.catalogName).includes(normalize(state.query)),
+    );
+    const totalPages = Math.max(1, Math.ceil(matchingItems.length / perPage));
+    state.page = Math.min(state.page, totalPages);
+    const visibleItems = new Set(
+      matchingItems.slice((state.page - 1) * perPage, state.page * perPage),
+    );
+    items.forEach((item) => (item.hidden = !visibleItems.has(item)));
+    controls.innerHTML = `<span>${matchingItems.length} resultado${matchingItems.length === 1 ? "" : "s"} · Página ${state.page} de ${totalPages}</span><div><button class="secondary-btn" data-catalog-page="prev" ${state.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-catalog-page="next" ${state.page === totalPages ? "disabled" : ""}>Próxima →</button></div>`;
+    controls.querySelectorAll("[data-catalog-page]").forEach((button) => {
+      button.onclick = () => {
+        state.page += button.dataset.catalogPage === "next" ? 1 : -1;
+        draw();
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+    });
+  };
+
+  search.value = state.query;
+  search.oninput = (event) => {
+    state.query = event.currentTarget.value;
+    state.page = 1;
+    draw();
+  };
+  draw();
 }
 
 function enhanceTicketConsole(
@@ -590,6 +639,7 @@ async function render() {
           });
       }),
   );
+  ["pals", "armor", "weapons", "resources"].forEach(enhanceCatalogPagination);
   const applyTicketFilters = () => {
     const category =
         document.querySelector("#ticket-category-filter")?.value || "all",
