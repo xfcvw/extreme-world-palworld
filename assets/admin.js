@@ -56,6 +56,15 @@ const catalogPaginationState = {
   weapons: { page: 1, query: "" },
   resources: { page: 1, query: "" },
 };
+const activityConsoleState = { server: "all", status: "all", query: "", page: 1 };
+const activityServerLabel = (number) => Number(number) === 2 ? "Com Wipe" : "Sem Wipe";
+const activityStatusLabel = (status) => ({ online: "Online", normal: "Normal", attention: "Atenção", critical: "Próximo do decay" })[status] || "Observado";
+const activityDate = (value) => value ? new Date(value).toLocaleString("pt-BR") : "Não registrado";
+const activityAge = (value) => {
+  if (!value) return "sem histórico";
+  const hours = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 36e5));
+  return hours < 24 ? `${hours}h` : `${Math.floor(hours / 24)}d ${hours % 24}h`;
+};
 const toast = (t) => {
   let el = document.querySelector("#admin-toast");
   if (!el) {
@@ -317,6 +326,37 @@ function enhanceCatalogPagination(category) {
   draw();
 }
 
+function enhanceActivityConsole(activity) {
+  const target = document.querySelector("#player-activity");
+  if (!target) return;
+  const players = Array.isArray(activity?.players) ? activity.players : [];
+  const agents = new Map((activity?.agents || []).map((agent) => [Number(agent.server_number), agent]));
+  const summary = new Map((activity?.summary || []).map((item) => [Number(item.serverNumber), item]));
+  const draw = () => {
+    const matching = players.filter((player) => {
+      const text = normalize(`${player.last_known_name} ${player.player_id}`);
+      return (activityConsoleState.server === "all" || String(player.server_number) === activityConsoleState.server) && (activityConsoleState.status === "all" || player.decay_status === activityConsoleState.status) && (!activityConsoleState.query || text.includes(normalize(activityConsoleState.query)));
+    });
+    const perPage = 12, totalPages = Math.max(1, Math.ceil(matching.length / perPage));
+    activityConsoleState.page = Math.min(activityConsoleState.page, totalPages);
+    const visible = matching.slice((activityConsoleState.page - 1) * perPage, activityConsoleState.page * perPage);
+    const header = [1, 2].map((server) => {
+      const item = summary.get(server) || { online: 0, attention: 0, critical: 0, total: 0 };
+      const agent = agents.get(server);
+      const fresh = agent?.last_report_at && Date.now() - new Date(agent.last_report_at).getTime() < 90000;
+      return `<article class="activity-summary-card"><span>${activityServerLabel(server).toUpperCase()} · ${server === 1 ? "LIMITE 3 DIAS" : "LIMITE 5 DIAS"}</span><b>${item.online} online</b><small>${item.attention} em atenção · ${item.critical} crítico${item.critical === 1 ? "" : "s"}</small><em class="${fresh ? "fresh" : "stale"}">${fresh ? "● Agente ativo" : "◌ Aguardando agente"}</em></article>`;
+    }).join("");
+    target.innerHTML = `<div class="profile-section-title"><div><span class="eyebrow cyan">PROTEÇÃO DE BASES</span><h3>Atividade e decay</h3><p class="admin-panel-note">Atenção: 48h no Sem Wipe e 96h no Com Wipe. Crítico: 72h e 120h, respectivamente.</p></div><span class="admin-status">${players.length} jogador${players.length === 1 ? "" : "es"}</span></div><div class="activity-summary-grid">${header}</div><div class="activity-toolbar"><label>Buscar jogador<input data-activity-query placeholder="NickName ou ID"></label><label>Servidor<select data-activity-server><option value="all">Todos</option><option value="1">Sem Wipe</option><option value="2">Com Wipe</option></select></label><label>Status<select data-activity-status><option value="all">Todos</option><option value="online">Online</option><option value="attention">Atenção</option><option value="critical">Próximo do decay</option><option value="normal">Normal</option></select></label></div><div class="activity-list">${visible.length ? visible.map((player) => { const activityAt = player.last_login_at || player.last_seen_at || player.first_seen_at; return `<article class="activity-row"><div><span class="admin-store-kind">${activityServerLabel(player.server_number)}</span><b>${esc(player.last_known_name)}</b><small>ID: ${esc(player.player_id)}</small></div><div><small>Última entrada</small><b>${esc(activityDate(player.last_login_at))}</b><small>${player.last_login_at ? `Há ${activityAge(player.last_login_at)}` : `Visto em ${esc(activityDate(player.last_seen_at))}`}</small></div><div><small>Última saída</small><b>${esc(activityDate(player.last_logout_at))}</b></div><span class="activity-state ${esc(player.decay_status)}">${esc(activityStatusLabel(player.decay_status))}</span></article>`; }).join("") : '<div class="admin-empty">Nenhum jogador encontrado neste filtro. O histórico começa assim que o agente for iniciado.</div>'}</div><div class="activity-pagination"><span>${matching.length} resultado${matching.length === 1 ? "" : "s"} · Página ${activityConsoleState.page} de ${totalPages}</span><div><button class="secondary-btn" data-activity-page="prev" ${activityConsoleState.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-activity-page="next" ${activityConsoleState.page === totalPages ? "disabled" : ""}>Próxima →</button></div></div>`;
+    const query = target.querySelector("[data-activity-query]"), server = target.querySelector("[data-activity-server]"), status = target.querySelector("[data-activity-status]");
+    query.value = activityConsoleState.query; server.value = activityConsoleState.server; status.value = activityConsoleState.status;
+    query.oninput = (event) => { activityConsoleState.query = event.target.value; activityConsoleState.page = 1; draw(); };
+    server.onchange = (event) => { activityConsoleState.server = event.target.value; activityConsoleState.page = 1; draw(); };
+    status.onchange = (event) => { activityConsoleState.status = event.target.value; activityConsoleState.page = 1; draw(); };
+    target.querySelectorAll("[data-activity-page]").forEach((button) => button.onclick = () => { activityConsoleState.page += button.dataset.activityPage === "next" ? 1 : -1; draw(); });
+  };
+  draw();
+}
+
 function enhanceTicketConsole(
   ticketRows,
   ticketMessagesByTicket,
@@ -466,6 +506,7 @@ async function render() {
     catalogResponse,
     { data: tickets },
     { data: ticketMessages },
+    activityResponse,
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -495,6 +536,9 @@ async function render() {
       .select("*")
       .order("created_at", { ascending: true })
       .limit(1500),
+    fetch("/api/admin-player-activity", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("activity unavailable")))
+      .catch(() => null),
   ]);
   const pending = (orders || []).filter((o) =>
     ["awaiting_delivery", "in_delivery", "paid"].includes(o.status),
@@ -532,6 +576,7 @@ async function render() {
     <article class="admin-stat-card"><span>PLAYERS</span><b>${profiles?.length || 0}</b><small>Contas no portal</small></article>
     <article class="admin-stat-card"><span>CATÁLOGO</span><b>${storeProducts.length || 0}</b><small>Itens disponíveis na loja</small></article>
     <article class="admin-stat-card"><span>ENTREGAS PENDENTES</span><b>${pending.length}</b><small>Exigem ação da equipe</small></article>
+    <section id="player-activity" class="admin-panel"><div class="admin-loading">Carregando atividade dos servidores...</div></section>
     <section id="buyers" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">CLIENTES E CARTEIRAS</span><h3>Compradores, MV e cargos</h3><p class="admin-panel-note">Owner pode definir cargos; Owner e Admin podem creditar ou retirar MV. Todas as alterações ficam registradas.</p></div><span class="admin-status">${profiles?.length || 0} contas</span></div><div class="buyer-admin-grid">${
       (profiles || [])
         .map((player) => {
@@ -640,6 +685,7 @@ async function render() {
       }),
   );
   ["pals", "armor", "weapons", "resources"].forEach(enhanceCatalogPagination);
+  enhanceActivityConsole(activityResponse);
   const applyTicketFilters = () => {
     const category =
         document.querySelector("#ticket-category-filter")?.value || "all",
