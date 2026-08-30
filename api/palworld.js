@@ -1,5 +1,3 @@
-import crypto from 'node:crypto';
-
 const servers={
   1:{url:process.env.PALWORLD_SERVER_1_API_URL,username:process.env.PALWORLD_SERVER_1_API_USERNAME,password:process.env.PALWORLD_SERVER_1_ADMIN_PASSWORD},
   2:{url:process.env.PALWORLD_SERVER_2_API_URL,username:process.env.PALWORLD_SERVER_2_API_USERNAME,password:process.env.PALWORLD_SERVER_2_ADMIN_PASSWORD}
@@ -7,7 +5,6 @@ const servers={
 const SUPABASE_URL=process.env.SUPABASE_URL;
 const PUBLISHABLE=process.env.SUPABASE_PUBLISHABLE_KEY;
 const SERVICE_ROLE=process.env.SUPABASE_SERVICE_ROLE_KEY;
-const ACTIVITY_SECRET=process.env.EXTREME_DELIVERY_SERVER_SECRET;
 
 function json(res,status,body,{privateResponse=false}={}){res.setHeader('Cache-Control',privateResponse?'private, no-store':'s-maxage=15, stale-while-revalidate=30');return res.status(status).json(body)}
 function asNumber(value){const parsed=Number(value);return Number.isFinite(parsed)?parsed:null}
@@ -63,13 +60,7 @@ async function savePlayerBinding(userId,character){
   const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?on_conflict=user_id,server_number`,{method:'POST',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(payload)});
   if(!response.ok){console.error('[palworld-player] binding save failed',{server:character.server,status:response.status});return null}
   const rows=await response.json().catch(()=>[]);
-  void syncActivityBinding(userId,character);
   return rows?.[0]||payload;
-}
-async function syncActivityBinding(userId,character){
-  if(!SUPABASE_URL||!SERVICE_ROLE||!character?.playerId)return;
-  const response=await fetch(`${SUPABASE_URL}/rest/v1/server_player_activity?server_number=eq.${encodeURIComponent(character.server)}&player_id=eq.${encodeURIComponent(character.playerId)}`,{method:'PATCH',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify({linked_user_id:userId,updated_at:new Date().toISOString()})});
-  if(!response.ok)console.error('[palworld-player] activity link failed',{server:character.server,status:response.status});
 }
 function characterFromBinding(binding,server){
   if(!binding)return null;
@@ -121,43 +112,23 @@ async function currentPlayer(req,res){
   return json(res,200,{found:characters.length>0,unavailable,nickname,characters,serverLinks,servers:results.map(({playersResult,...server})=>server),updatedAt:new Date().toISOString(),message:unavailable&&linkedCount===0?'Não foi possível sincronizar seus dados no momento. Tente novamente em instantes.':linkedCount===2?'Seus dois personagens estão vinculados. O portal mantém a última leitura mesmo quando você está offline.':linkedCount?'Seu personagem foi vinculado em um servidor. Entre no outro servidor uma vez para criar o segundo vínculo.':nickname?'Entre uma vez em cada servidor com o NickName configurado. Depois disso, não será necessário ficar online para vê-los aqui.':'Cadastre seu NickName do Palworld para iniciar a vinculação.'},{privateResponse:true});
 }
 
-const activityText=(value,length)=>String(value??'').replace(/[\x00-\x1f]/g,' ').trim().slice(0,length);
-const validActivityPlayerId=(value)=>/^[A-Za-z0-9_:-]{1,180}$/.test(value);
-function activitySafeEqual(left,right){const a=Buffer.from(String(left||''),'utf8'),b=Buffer.from(String(right||''),'utf8');return a.length===b.length&&crypto.timingSafeEqual(a,b)}
-function activityAgentId(req){const id=activityText(req.headers['x-extreme-delivery-agent'],80);if(!ACTIVITY_SECRET||!activitySafeEqual(req.headers['x-extreme-delivery-key'],ACTIVITY_SECRET))return null;return /^[a-z0-9][a-z0-9_-]{2,79}$/i.test(id)?id:null}
-async function activityService(path,options={}){const response=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{...options,headers:{apikey:SERVICE_ROLE,Authorization:`Bearer ${SERVICE_ROLE}`,'Content-Type':'application/json',...(options.headers||{})}});const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.message||data?.hint||`Supabase ${response.status}`);return data}
-function activityPlayers(value){if(!Array.isArray(value))return [];const byId=new Map();value.slice(0,200).forEach(raw=>{const playerId=activityText(raw?.playerId,180),name=activityText(raw?.name,80);if(validActivityPlayerId(playerId)&&name)byId.set(playerId,{playerId,name})});return [...byId.values()]}
-async function registerPlayerActivity(req,res){
-  if(!SUPABASE_URL||!SERVICE_ROLE||!ACTIVITY_SECRET)return json(res,503,{error:'Rastreamento ainda não configurado.'});
-  const reporter=activityAgentId(req);if(!reporter)return json(res,401,{error:'Agente de atividade não autorizado.'});
+async function adminPlayerSync(req,res){
+  const account=await authenticatedProfile(req);
+  if(!account?.userId)return json(res,401,{error:'Entre com Discord para continuar.'});
   try{
-    const serverNumber=Number(req.body?.serverNumber);if(![1,2].includes(serverNumber))return json(res,400,{error:'Servidor inválido.'});
-    const online=activityPlayers(req.body?.players),joined=new Set(activityPlayers(req.body?.joins).map(player=>player.playerId)),left=activityPlayers(req.body?.leaves),now=new Date().toISOString();
-    const [existingRows,bindings]=await Promise.all([activityService(`server_player_activity?server_number=eq.${serverNumber}&select=*`),activityService(`player_server_bindings?server_number=eq.${serverNumber}&select=user_id,player_id`)]);
-    const existing=new Map((existingRows||[]).map(row=>[row.player_id,row])),linked=new Map((bindings||[]).map(row=>[row.player_id,row.user_id])),writes=new Map();
-    online.forEach(player=>{const previous=existing.get(player.playerId);writes.set(player.playerId,{server_number:serverNumber,player_id:player.playerId,last_known_name:player.name,linked_user_id:linked.get(player.playerId)||previous?.linked_user_id||null,first_seen_at:previous?.first_seen_at||now,last_login_at:joined.has(player.playerId)?now:previous?.last_login_at||null,last_logout_at:previous?.last_logout_at||null,last_seen_at:now,is_online:true,updated_at:now})});
-    left.forEach(player=>{const previous=existing.get(player.playerId);writes.set(player.playerId,{server_number:serverNumber,player_id:player.playerId,last_known_name:player.name||previous?.last_known_name||'Jogador',linked_user_id:linked.get(player.playerId)||previous?.linked_user_id||null,first_seen_at:previous?.first_seen_at||now,last_login_at:previous?.last_login_at||null,last_logout_at:now,last_seen_at:previous?.last_seen_at||now,is_online:false,updated_at:now})});
-    if(writes.size)await activityService('server_player_activity?on_conflict=server_number,player_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify([...writes.values()])});
-    await activityService('server_activity_agents?on_conflict=server_number',{method:'POST',headers:{Prefer:'resolution=merge-duplicates'},body:JSON.stringify({server_number:serverNumber,agent_id:reporter,player_count:online.length,last_report_at:now,updated_at:now})});
-    return json(res,200,{ok:true,serverNumber,online:online.length,joins:joined.size,leaves:left.length,observedAt:now});
-  }catch(error){console.error('[player-activity] failed',{message:error?.message});return json(res,500,{error:'Não foi possível registrar a atividade do servidor.'})}
-}
-function activityDecayStatus(row,now){if(row.is_online)return 'online';const base=new Date(row.last_login_at||row.last_seen_at||row.first_seen_at).getTime(),hours=Math.max(0,(now-base)/36e5),limit=Number(row.server_number)===1?72:120,warning=Number(row.server_number)===1?48:96;return hours>=limit?'critical':hours>=warning?'attention':'normal'}
-async function adminPlayerActivity(req,res){
-  if(!SUPABASE_URL||!PUBLISHABLE||!SERVICE_ROLE)return json(res,503,{error:'A administração ainda não foi configurada.'});
-  const token=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'').trim();if(!token)return json(res,401,{error:'Entre com Discord para continuar.'});
-  try{
-    const userResponse=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:PUBLISHABLE,Authorization:`Bearer ${token}`}}),user=await userResponse.json().catch(()=>null);if(!userResponse.ok||!user?.id)return json(res,401,{error:'Sua sessão expirou. Entre novamente.'});
-    const [profile]=await activityService(`profiles?select=role&user_id=eq.${encodeURIComponent(user.id)}&limit=1`);if(!['owner','admin','support'].includes(profile?.role))return json(res,403,{error:'Sua conta não possui permissão para ver a atividade dos jogadores.'});
-    const [players,agents]=await Promise.all([activityService('server_player_activity?select=*&order=last_seen_at.desc&limit=2000'),activityService('server_activity_agents?select=*')]);const now=Date.now(),rows=(players||[]).map(player=>({...player,decay_status:activityDecayStatus(player,now)})),summary=[1,2].map(serverNumber=>{const entries=rows.filter(row=>Number(row.server_number)===serverNumber);return {serverNumber,total:entries.length,online:entries.filter(row=>row.decay_status==='online').length,attention:entries.filter(row=>row.decay_status==='attention').length,critical:entries.filter(row=>row.decay_status==='critical').length}});
-    return json(res,200,{generatedAt:new Date(now).toISOString(),players:rows,agents:agents||[],summary});
-  }catch(error){console.error('[admin-player-activity] failed',{message:error?.message});return json(res,500,{error:'Não foi possível carregar o controle de atividade.'})}
+    const profileResponse=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(account.userId)}&select=role&limit=1`,{headers:serviceHeaders()});
+    const [profile]=await profileResponse.json().catch(()=>[]);
+    if(!profileResponse.ok||!['owner','admin','support'].includes(profile?.role))return json(res,403,{error:'Sua conta não possui permissão para ver as sincronizações.'});
+    const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?select=user_id,server_number,player_id,nickname,character_name,level,guild,last_connection,last_seen_at,last_synced_at&order=last_synced_at.desc&limit=2000`,{headers:serviceHeaders()});
+    const bindings=await response.json().catch(()=>[]);
+    if(!response.ok)throw new Error(`Supabase ${response.status}`);
+    return json(res,200,{bindings:Array.isArray(bindings)?bindings:[],generatedAt:new Date().toISOString()},{privateResponse:true});
+  }catch(error){console.error('[admin-player-sync] failed',{message:error?.message});return json(res,500,{error:'Não foi possível carregar as sincronizações.'},{privateResponse:true})}
 }
 
 export default async function handler(req,res){
   const mode=String(req.query?.mode||'');
-  if(req.method==='POST'&&mode==='activity')return registerPlayerActivity(req,res);
-  if(req.method==='GET'&&mode==='admin-activity')return adminPlayerActivity(req,res);
+  if(req.method==='GET'&&mode==='admin-sync')return adminPlayerSync(req,res);
   if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
   if(mode==='me'){
     try{return await currentPlayer(req,res)}catch(error){console.error('[palworld-player] failed',{message:error?.message});return json(res,200,{found:false,unavailable:true,message:'Não foi possível sincronizar seus dados no momento. Tente novamente em instantes.'},{privateResponse:true})}
