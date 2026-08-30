@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /perfil.html
+
+Sitemap: https://extreme-world-palworld.vercel.app/sitemap.xml
