@@ -60,7 +60,13 @@ async function savePlayerBinding(userId,character){
   const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?on_conflict=user_id,server_number`,{method:'POST',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(payload)});
   if(!response.ok){console.error('[palworld-player] binding save failed',{server:character.server,status:response.status});return null}
   const rows=await response.json().catch(()=>[]);
+  void syncActivityBinding(userId,character);
   return rows?.[0]||payload;
+}
+async function syncActivityBinding(userId,character){
+  if(!SUPABASE_URL||!SERVICE_ROLE||!character?.playerId)return;
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/server_player_activity?server_number=eq.${encodeURIComponent(character.server)}&player_id=eq.${encodeURIComponent(character.playerId)}`,{method:'PATCH',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'return=minimal'}),body:JSON.stringify({linked_user_id:userId,updated_at:new Date().toISOString()})});
+  if(!response.ok)console.error('[palworld-player] activity link failed',{server:character.server,status:response.status});
 }
 function characterFromBinding(binding,server){
   if(!binding)return null;
