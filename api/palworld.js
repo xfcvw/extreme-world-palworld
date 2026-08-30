@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 const servers={
   1:{url:process.env.PALWORLD_SERVER_1_API_URL,username:process.env.PALWORLD_SERVER_1_API_USERNAME,password:process.env.PALWORLD_SERVER_1_ADMIN_PASSWORD},
   2:{url:process.env.PALWORLD_SERVER_2_API_URL,username:process.env.PALWORLD_SERVER_2_API_USERNAME,password:process.env.PALWORLD_SERVER_2_ADMIN_PASSWORD}
@@ -5,6 +7,7 @@ const servers={
 const SUPABASE_URL=process.env.SUPABASE_URL;
 const PUBLISHABLE=process.env.SUPABASE_PUBLISHABLE_KEY;
 const SERVICE_ROLE=process.env.SUPABASE_SERVICE_ROLE_KEY;
+const AUTOMATED_SYNC_KEY=process.env.PALWORLD_SYNC_CRON_SECRET;
 
 function json(res,status,body,{privateResponse=false}={}){res.setHeader('Cache-Control',privateResponse?'private, no-store':'s-maxage=15, stale-while-revalidate=30');return res.status(status).json(body)}
 function asNumber(value){const parsed=Number(value);return Number.isFinite(parsed)?parsed:null}
@@ -61,6 +64,56 @@ async function savePlayerBinding(userId,character){
   if(!response.ok){console.error('[palworld-player] binding save failed',{server:character.server,status:response.status});return null}
   const rows=await response.json().catch(()=>[]);
   return rows?.[0]||payload;
+}
+
+async function readServerBindings(serverNumber){
+  if(!SUPABASE_URL||!SERVICE_ROLE)return [];
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?server_number=eq.${encodeURIComponent(serverNumber)}&select=user_id,server_number,player_id,nickname,character_name,level,guild,last_connection`,{headers:serviceHeaders()});
+  if(!response.ok)throw new Error(`Não foi possível ler os vínculos do servidor ${serverNumber} (${response.status})`);
+  const rows=await response.json().catch(()=>[]);
+  return Array.isArray(rows)?rows:[];
+}
+async function saveServerSyncStatus(payload){
+  const response=await fetch(`${SUPABASE_URL}/rest/v1/server_sync_status?on_conflict=server_number`,{method:'POST',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'}),body:JSON.stringify(payload)});
+  if(!response.ok)throw new Error(`Não foi possível registrar a sincronização (${response.status})`);
+}
+function secureEquals(received,expected){
+  const left=Buffer.from(String(received||'')),right=Buffer.from(String(expected||''));
+  return left.length===right.length&&left.length>0&&crypto.timingSafeEqual(left,right);
+}
+async function syncKnownPlayers(serverNumber){
+  const attemptedAt=new Date().toISOString();
+  const result=await fetchServer(serverNumber,{withPlayers:true});
+  if(!result.online){
+    await saveServerSyncStatus({server_number:serverNumber,last_attempt_at:attemptedAt,status:'unreachable',online_player_count:0,matched_bindings:0,last_error:result.status||'unreachable'});
+    return {server:serverNumber,status:'unreachable',matchedBindings:0};
+  }
+  if(!result.playersResult?.ok){
+    await saveServerSyncStatus({server_number:serverNumber,last_attempt_at:attemptedAt,status:'degraded',online_player_count:result.playersOnline??0,matched_bindings:0,last_error:`players endpoint ${result.playersResult?.status||'failed'}`});
+    return {server:serverNumber,status:'degraded',matchedBindings:0};
+  }
+  const [bindings,players]=await Promise.all([readServerBindings(serverNumber),Promise.resolve(playerRows(result.playersResult.data))]);
+  const bindingsByPlayerId=new Map();
+  for(const binding of bindings){
+    const id=String(binding.player_id||'');
+    if(!id)continue;
+    const matching=bindingsByPlayerId.get(id)||[];
+    matching.push(binding);
+    bindingsByPlayerId.set(id,matching);
+  }
+  const now=new Date().toISOString(),updates=[];
+  for(const row of players){
+    const character=safeCharacter(row,serverNumber),matches=bindingsByPlayerId.get(String(character?.playerId||''))||[];
+    for(const binding of matches){
+      updates.push({user_id:binding.user_id,server_number:serverNumber,player_id:binding.player_id,nickname:character.characterName||binding.nickname||'Jogador',character_name:character.characterName||binding.character_name||null,level:character.level??binding.level??null,guild:character.guild||binding.guild||null,last_connection:character.lastConnection||binding.last_connection||null,last_seen_at:now,last_synced_at:now});
+    }
+  }
+  if(updates.length){
+    const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?on_conflict=user_id,server_number`,{method:'POST',headers:serviceHeaders({'Content-Type':'application/json',Prefer:'resolution=merge-duplicates'}),body:JSON.stringify(updates)});
+    if(!response.ok)throw new Error(`Não foi possível atualizar jogadores do servidor ${serverNumber} (${response.status})`);
+  }
+  await saveServerSyncStatus({server_number:serverNumber,last_attempt_at:attemptedAt,last_success_at:now,status:'online',online_player_count:players.length,matched_bindings:updates.length,last_error:null});
+  return {server:serverNumber,status:'online',onlinePlayers:players.length,matchedBindings:updates.length};
 }
 function characterFromBinding(binding,server){
   if(!binding)return null;
@@ -119,15 +172,35 @@ async function adminPlayerSync(req,res){
     const profileResponse=await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(account.userId)}&select=role&limit=1`,{headers:serviceHeaders()});
     const [profile]=await profileResponse.json().catch(()=>[]);
     if(!profileResponse.ok||!['owner','admin','support'].includes(profile?.role))return json(res,403,{error:'Sua conta não possui permissão para ver as sincronizações.'});
-    const response=await fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?select=user_id,server_number,player_id,nickname,character_name,level,guild,last_connection,last_seen_at,last_synced_at&order=last_synced_at.desc&limit=2000`,{headers:serviceHeaders()});
-    const bindings=await response.json().catch(()=>[]);
-    if(!response.ok)throw new Error(`Supabase ${response.status}`);
-    return json(res,200,{bindings:Array.isArray(bindings)?bindings:[],generatedAt:new Date().toISOString()},{privateResponse:true});
+    const [bindingsResponse,statusResponse]=await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/player_server_bindings?select=user_id,server_number,player_id,nickname,character_name,level,guild,last_connection,last_seen_at,last_synced_at&order=last_synced_at.desc&limit=2000`,{headers:serviceHeaders()}),
+      fetch(`${SUPABASE_URL}/rest/v1/server_sync_status?select=server_number,last_attempt_at,last_success_at,status,online_player_count,matched_bindings,last_error&order=server_number.asc`,{headers:serviceHeaders()})
+    ]);
+    const [bindings,serverStatus]=await Promise.all([bindingsResponse.json().catch(()=>[]),statusResponse.json().catch(()=>[])]);
+    if(!bindingsResponse.ok)throw new Error(`Supabase ${bindingsResponse.status}`);
+    return json(res,200,{bindings:Array.isArray(bindings)?bindings:[],serverStatus:statusResponse.ok&&Array.isArray(serverStatus)?serverStatus:[],generatedAt:new Date().toISOString()},{privateResponse:true});
   }catch(error){console.error('[admin-player-sync] failed',{message:error?.message});return json(res,500,{error:'Não foi possível carregar as sincronizações.'},{privateResponse:true})}
+}
+
+async function automatedSync(req,res){
+  const received=req.headers['x-extreme-sync-key'];
+  if(!AUTOMATED_SYNC_KEY)return json(res,503,{error:'A sincronização automática ainda não foi configurada.'},{privateResponse:true});
+  if(!secureEquals(received,AUTOMATED_SYNC_KEY))return json(res,401,{error:'Não autorizado.'},{privateResponse:true});
+  try{
+    const results=await Promise.all([1,2].map(async(server)=>{
+      try{return await syncKnownPlayers(server)}catch(error){
+        console.error('[automated-palworld-sync] server failed',{server,message:error?.message});
+        try{await saveServerSyncStatus({server_number:server,last_attempt_at:new Date().toISOString(),status:'error',online_player_count:0,matched_bindings:0,last_error:'Erro interno na sincronização'});}catch{}
+        return {server,status:'error',matchedBindings:0};
+      }
+    }));
+    return json(res,200,{ok:true,servers:results,finishedAt:new Date().toISOString()},{privateResponse:true});
+  }catch(error){console.error('[automated-palworld-sync] failed',{message:error?.message});return json(res,500,{error:'Não foi possível concluir a sincronização.'},{privateResponse:true})}
 }
 
 export default async function handler(req,res){
   const mode=String(req.query?.mode||'');
+  if(req.method==='GET'&&mode==='automated-sync')return automatedSync(req,res);
   if(req.method==='GET'&&mode==='admin-sync')return adminPlayerSync(req,res);
   if(req.method!=='GET')return json(res,405,{error:'Method not allowed'});
   if(mode==='me'){
