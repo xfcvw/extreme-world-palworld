@@ -28,12 +28,12 @@ function cleanRequestText(value, maxLength) {
   return String(value ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, maxLength);
 }
 
-function readPalPreferences(value) {
+function readPalPreferences(value, { allowPassives = true } = {}) {
   const requestedGender = String(value?.desiredGender || 'any');
   const gender = ['any', 'female', 'male'].includes(requestedGender) ? requestedGender : 'any';
   return {
     desired_gender: gender,
-    desired_passives: cleanRequestText(value?.desiredPassives, 400),
+    desired_passives: allowPassives ? cleanRequestText(value?.desiredPassives, 400) : '',
     delivery_notes: cleanRequestText(value?.deliveryNotes, 500)
   };
 }
@@ -65,7 +65,8 @@ export default async function handler(req, res) {
       const priceByLevel = item.metadata?.price_by_level || {};
       const victoryCoins = Number(priceByLevel[requestedLevel]);
       if (!Number.isFinite(victoryCoins) || victoryCoins < 1) return json(res, 500, { error: 'O preço desse Pal ainda não foi configurado.' });
-      const palPreferences = readPalPreferences(req.body?.palPreferences);
+      const palPreferences = readPalPreferences(req.body?.palPreferences, { allowPassives: serverNumber !== 2 });
+      if (serverNumber === 2) palPreferences.passives_mode = 'random';
       selectedItem = {
         ...item,
         name: `${item.name} — Nível ${requestedLevel}`,
