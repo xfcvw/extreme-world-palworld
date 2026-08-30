@@ -536,7 +536,7 @@ async function render() {
       .select("*")
       .order("created_at", { ascending: true })
       .limit(1500),
-    fetch("/api/admin-player-activity", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
+    fetch("/api/palworld?mode=admin-activity", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
       .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("activity unavailable")))
       .catch(() => null),
   ]);
