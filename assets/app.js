@@ -160,8 +160,8 @@ function openCatalogPalPurchase(item){
   const levelsActive=item.metadata?.pal_levels_active||{};
   const priceFor=level=>Number(prices[level]||0);
   const defaultServer=profile?.default_server===2?2:1;
-  modal(`<span class="eyebrow blue">COMPRAR PAL</span><h2>${esc(item.name)}</h2><p>Classe <b>${esc(item.metadata?.pal_class||'D')}</b>. Confira o nível e o valor antes de confirmar: a entrega é manual por um ADM após o desconto da carteira.</p><form id="catalog-pal-buy" class="form"><label>Servidor<select name="server"><option value="1" ${defaultServer===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${defaultServer===2?'selected':''}>Extreme World com Wipe</option></select></label><label>Nível<select name="level"><option value="80" data-level-active="${levelsActive[80]!==false}">Nível 80 — ${coins(priceFor(80))} MV</option><option value="255" data-level-active="${levelsActive[255]!==false}">Nível 255 — ${coins(priceFor(255))} MV</option></select><small id="pal-level-note"></small></label><fieldset class="pal-request-fields"><legend>Preferências para entrega</legend><label>Sexo desejado<select name="desiredGender"><option value="any">Sem preferência</option><option value="female">Fêmea</option><option value="male">Macho</option></select></label><label>Passivas desejadas<textarea name="desiredPassives" maxlength="400" placeholder="Ex.: Corredor, Lenda, Ferocidade..."></textarea></label><label>Outras observações<textarea name="deliveryNotes" maxlength="500" placeholder="Descreva aqui qualquer outro detalhe importante para a entrega."></textarea></label><small>Os pedidos dependem da disponibilidade e serão analisados pela equipe.</small></fieldset><button class="full-btn" type="submit"></button></form>`);
-  const form=$('#catalog-pal-buy'), serverSelect=form.querySelector('[name="server"]'), levelSelect=form.querySelector('[name="level"]'), note=$('#pal-level-note'), button=form.querySelector('button');
+  modal(`<span class="eyebrow blue">COMPRAR PAL</span><h2>${esc(item.name)}</h2><p>Classe <b>${esc(item.metadata?.pal_class||'D')}</b>. Confira o nível e o valor antes de confirmar: a entrega é manual por um ADM após o desconto da carteira.</p><form id="catalog-pal-buy" class="form"><label>Servidor<select name="server"><option value="1" ${defaultServer===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${defaultServer===2?'selected':''}>Extreme World com Wipe</option></select></label><label>Nível<select name="level"><option value="80" data-level-active="${levelsActive[80]!==false}">Nível 80 — ${coins(priceFor(80))} MV</option><option value="255" data-level-active="${levelsActive[255]!==false}">Nível 255 — ${coins(priceFor(255))} MV</option></select><small id="pal-level-note"></small></label><fieldset class="pal-request-fields"><legend>Preferências para entrega</legend><label>Sexo desejado<select name="desiredGender"><option value="any">Sem preferência</option><option value="female">Fêmea</option><option value="male">Macho</option></select></label><label data-pal-passives-field>Passivas desejadas<textarea name="desiredPassives" maxlength="400" placeholder="Ex.: Corredor, Lenda, Ferocidade..."></textarea></label><small data-pal-passives-random hidden>No servidor Com Wipe, as passivas do Pal são aleatórias e não podem ser escolhidas.</small><label>Outras observações<textarea name="deliveryNotes" maxlength="500" placeholder="Descreva aqui qualquer outro detalhe importante para a entrega."></textarea></label><small>Os pedidos dependem da disponibilidade e serão analisados pela equipe.</small></fieldset><button class="full-btn" type="submit"></button></form>`);
+  const form=$('#catalog-pal-buy'), serverSelect=form.querySelector('[name="server"]'), levelSelect=form.querySelector('[name="level"]'), note=$('#pal-level-note'), passiveField=form.querySelector('[data-pal-passives-field]'), passiveInput=form.querySelector('[name="desiredPassives"]'), passiveRandomNote=form.querySelector('[data-pal-passives-random]'), button=form.querySelector('button');
   const syncLevel=()=>{
     const isWipe=Number(serverSelect.value)===2;
     const level80=levelSelect.querySelector('option[value="80"]');
@@ -170,6 +170,10 @@ function openCatalogPalPurchase(item){
     level255.disabled=isWipe||level255.dataset.levelActive!=='true';
     if(levelSelect.selectedOptions[0]?.disabled){const available=[...levelSelect.options].find(option=>!option.disabled);if(available)levelSelect.value=available.value;}
     const noneAvailable=[...levelSelect.options].every(option=>option.disabled);
+    passiveField.hidden=isWipe;
+    passiveInput.disabled=isWipe;
+    passiveRandomNote.hidden=!isWipe;
+    if(isWipe)passiveInput.value='';
     note.textContent=noneAvailable?'Nenhum nível deste Pal está disponível no momento.':isWipe?'No servidor com Wipe, Pals são entregues somente no nível 80.':'';
     button.disabled=noneAvailable;
     button.textContent=`Comprar por ${coins(priceFor(Number(levelSelect.value)))} MV`;
@@ -179,7 +183,7 @@ function openCatalogPalPurchase(item){
     event.preventDefault();button.disabled=true;button.textContent='Criando pedido...';
     try{
       const values=new FormData(form),serverNumber=Number(values.get('server')),palLevel=Number(values.get('level'));
-      const palPreferences={desiredGender:values.get('desiredGender'),desiredPassives:values.get('desiredPassives'),deliveryNotes:values.get('deliveryNotes')};
+      const palPreferences={desiredGender:values.get('desiredGender'),desiredPassives:serverNumber===2?'':values.get('desiredPassives'),deliveryNotes:values.get('deliveryNotes')};
       const response=await fetch('/api/catalog-purchase',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({catalogKey:item.key,serverNumber,palLevel,palPreferences})});
       const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Não foi possível criar o pedido.');
       closeModal();toast('Pedido criado! Aguarde a entrega do ADM.');await loadAccount();
