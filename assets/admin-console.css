@@ -58,6 +58,25 @@
   border-radius: 15px;
   background: #0b1927;
 }
+
+/* Controle de atividade e decay */
+.activity-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:18px 0; }
+.activity-summary-card { display:grid; gap:5px; padding:15px; border:1px solid #294a64; border-radius:13px; background:linear-gradient(145deg,#102436,#0b1927); }
+.activity-summary-card span { color:#7dbbff; font-size:9px; font-weight:900; letter-spacing:.08em; }
+.activity-summary-card b { color:#fff; font:700 28px Rajdhani; }
+.activity-summary-card small { color:#9ab0c6; font-size:10px; }
+.activity-summary-card em { font-size:10px; font-style:normal; font-weight:800; }
+.activity-summary-card em.fresh { color:#74e1a3; }.activity-summary-card em.stale { color:#ffcf71; }
+.activity-toolbar { display:grid; grid-template-columns:minmax(220px,1fr) 160px 180px; gap:10px; margin-bottom:13px; }
+.activity-toolbar label { display:grid; gap:6px; color:#8fa8bf; font-size:9px; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }
+.activity-toolbar input,.activity-toolbar select { min-width:0; padding:11px 12px; border:1px solid #315470; border-radius:10px; background:#091725; color:#f2f8ff; font:inherit; font-size:12px; outline:0; }
+.activity-toolbar input:focus,.activity-toolbar select:focus { border-color:#5baaff; box-shadow:0 0 0 3px rgba(62,147,255,.14); }
+.activity-list { display:grid; gap:8px; }
+.activity-row { display:grid; grid-template-columns:minmax(150px,1.2fr) minmax(160px,1fr) minmax(150px,1fr) auto; gap:12px; align-items:center; padding:13px 14px; border:1px solid #29455d; border-radius:12px; background:#0d1c2a; }
+.activity-row>div { display:grid; gap:3px; min-width:0; }.activity-row b { overflow:hidden; color:#eef7ff; font-size:12px; text-overflow:ellipsis; white-space:nowrap; }.activity-row small { overflow:hidden; color:#89a2ba; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.activity-state { padding:6px 8px; border:1px solid transparent; border-radius:999px; font-size:9px; font-weight:900; text-align:center; white-space:nowrap; }.activity-state.online { color:#8df1b5; background:#123e2a; border-color:#28744b; }.activity-state.normal { color:#a9d3ff; background:#153554; border-color:#255b8e; }.activity-state.attention { color:#ffe08e; background:#564610; border-color:#8d701a; }.activity-state.critical { color:#ffb0b8; background:#55222c; border-color:#8f3545; }
+.activity-pagination { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; color:#91acc3; font-size:10px; }.activity-pagination div { display:flex; gap:7px; }.activity-pagination .secondary-btn { padding:8px 10px; font-size:10px; }
+@media(max-width:760px){.activity-summary-grid,.activity-toolbar{grid-template-columns:1fr}.activity-row{grid-template-columns:1fr 1fr}.activity-state{justify-self:start}.activity-pagination{align-items:flex-start; flex-direction:column}}
 .admin-ticket-queue {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
