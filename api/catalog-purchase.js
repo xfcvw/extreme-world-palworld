@@ -88,15 +88,17 @@ export default async function handler(req, res) {
     }
     if (item.category === 'resources') {
       const quantity = Math.floor(Number(req.body?.quantity || 0));
-      const unitPrice = Number(item.victoryCoins);
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000) return json(res, 400, { error: 'Escolha uma quantidade entre 1 e 10.000 unidades.' });
-      if (!Number.isInteger(unitPrice) || unitPrice < 1) return json(res, 500, { error: 'O preço por unidade deste recurso ainda não foi configurado.' });
-      const victoryCoins = unitPrice * quantity;
+      const packSize = 2;
+      const packPrice = Number(item.victoryCoins);
+      if (!Number.isInteger(quantity) || quantity < packSize || quantity > 10000 || quantity % packSize !== 0) return json(res, 400, { error: 'Escolha uma quantidade par entre 2 e 10.000 unidades.' });
+      if (!Number.isInteger(packPrice) || packPrice < 1) return json(res, 500, { error: 'O preço do pacote deste recurso ainda não foi configurado.' });
+      const packs = quantity / packSize;
+      const victoryCoins = packPrice * packs;
       if (victoryCoins > 100000) return json(res, 400, { error: 'O total desta compra não pode passar de 100.000 MV.' });
       selectedItem = {
         ...item,
         victoryCoins,
-        metadata: { ...item.metadata, quantity, unit_victory_coins: unitPrice }
+        metadata: { ...item.metadata, package_pricing: true, pack_size: packSize, quantity, packs, package_victory_coins: packPrice }
       };
     }
 
