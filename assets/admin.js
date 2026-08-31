@@ -148,12 +148,29 @@ async function updateStoreProduct(key, form) {
       '[name="level255Active"]',
     ).checked;
   }
-  const { error } = await supabase
-    .from("catalog_price_overrides")
-    .upsert(payload, { onConflict: "catalog_key" });
-  if (error) return toast(error.message);
-  toast("Item da loja atualizado.");
-  await render();
+  const session = await getSharedSession();
+  if (!session) return toast("Sua sessão expirou. Entre novamente.");
+  const button = form.querySelector("button");
+  button.disabled = true;
+  button.textContent = "Salvando...";
+  try {
+    const response = await fetch("/api/admin-catalog-price", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || "Não foi possível atualizar o item.");
+    toast("Item da loja atualizado.");
+    await render();
+  } catch (error) {
+    toast(error.message);
+    button.disabled = false;
+    button.textContent = "Salvar";
+  }
 }
 function renderCatalogCategory(category, items, canManage) {
   const label = {
