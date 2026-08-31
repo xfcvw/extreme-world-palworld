@@ -85,16 +85,21 @@ const palRequestSummary = (order) => {
   if (prefs.delivery_notes) parts.push(`Obs.: ${prefs.delivery_notes}`);
   return parts.join(" · ");
 };
-const deliveryQuantity = (order) => {
-  const item = (order?.order_items || [])[0];
+const itemQuantity = (item) => {
   const selectedQuantity = Number(item?.metadata?.quantity);
   const recordedQuantity = Number(item?.quantity);
   const packSize = Number(item?.metadata?.pack_size);
-  const quantity =
+  return (
     (Number.isInteger(selectedQuantity) && selectedQuantity > 0 && selectedQuantity) ||
     (Number.isInteger(recordedQuantity) && recordedQuantity > 0 && recordedQuantity) ||
     (Number.isInteger(packSize) && packSize > 0 && packSize) ||
-    1;
+    1
+  );
+};
+const purchaseLabel = (item) =>
+  `${item?.name_snapshot || "Pedido"} × ${coins(itemQuantity(item))}`;
+const deliveryQuantity = (order) => {
+  const quantity = itemQuantity((order?.order_items || [])[0]);
   return `Quantidade: ${coins(quantity)} ${quantity === 1 ? "unidade" : "unidades"}`;
 };
 async function setDelivery(id, status) {
@@ -647,7 +652,7 @@ async function render() {
           const purchases = playerOrders
             .slice(0, 4)
             .flatMap((order) =>
-              (order.order_items || []).map((item) => item.name_snapshot),
+              (order.order_items || []).map(purchaseLabel),
             )
             .filter(Boolean);
           const canSetRole =
