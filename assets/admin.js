@@ -102,6 +102,7 @@ async function updateStoreProduct(key, form) {
   const category = form.dataset.category;
   const isEquipment = ["weapons", "armor"].includes(category);
   const isPal = category === "pals";
+  const isResource = category === "resources";
   const price = inputCoins(form.querySelector('[name="price"]')?.value);
   const legendaryPrice = inputCoins(
     form.querySelector('[name="legendaryPrice"]')?.value,
@@ -113,7 +114,11 @@ async function updateStoreProduct(key, form) {
     form.querySelector('[name="level255Price"]')?.value,
   );
   if (!isPal && (!Number.isInteger(price) || price < 1))
-    return toast("Informe um preço Normal válido em Moedas da Vitória.");
+    return toast(
+      isResource
+        ? "Informe um preço por unidade válido em Moedas da Vitória."
+        : "Informe um preço Normal válido em Moedas da Vitória.",
+    );
   if (isEquipment && (!Number.isInteger(legendaryPrice) || legendaryPrice < 1))
     return toast("Informe um preço Lendário válido em Moedas da Vitória.");
   if (
@@ -163,6 +168,7 @@ function renderCatalogCategory(category, items, canManage) {
       .map((product) => {
         const pal = category === "pals",
           equipment = ["weapons", "armor"].includes(category),
+          resource = category === "resources",
           prices = product.metadata?.price_by_level || {},
           levels = product.metadata?.pal_levels_active || {},
           normal =
@@ -171,7 +177,7 @@ function renderCatalogCategory(category, items, canManage) {
           legendary =
             product.metadata?.equipment_prices?.legendary ??
             (category === "weapons" ? 6 : 5);
-        return `<form class="store-admin-item" data-store-form="${esc(product.key)}" data-category="${category}" data-catalog-name="${esc(product.name)}"><div><span class="admin-store-kind">${category}</span><b>${esc(product.name)}</b><small>${esc(product.quantityLabel || product.description || "")}</small></div>${pal ? `<label>Preço nível 80 (MV)<input name="level80Price" inputmode="numeric" value="${Number(prices[80] || product.victoryCoins)}" ${canManage ? "" : "disabled"}></label><label>Preço nível 255 (MV)<input name="level255Price" inputmode="numeric" value="${Number(prices[255] || product.victoryCoins)}" ${canManage ? "" : "disabled"}></label><label class="admin-active"><input name="level80Active" type="checkbox" ${levels[80] !== false ? "checked" : ""} ${canManage ? "" : "disabled"}> Nível 80</label><label class="admin-active"><input name="level255Active" type="checkbox" ${levels[255] !== false ? "checked" : ""} ${canManage ? "" : "disabled"}> Nível 255</label>` : equipment ? `<label>Preço normal (MV)<input name="price" inputmode="numeric" value="${Number(normal)}" ${canManage ? "" : "disabled"}></label><label>Preço lendário (MV)<input name="legendaryPrice" inputmode="numeric" value="${Number(legendary)}" ${canManage ? "" : "disabled"}></label>` : `<label>Preço (MV)<input name="price" inputmode="numeric" value="${Number(product.victoryCoins)}" ${canManage ? "" : "disabled"}></label>`}<label class="admin-active"><input name="active" type="checkbox" ${product.active ? "checked" : ""} ${canManage ? "" : "disabled"}> Ativo</label>${canManage ? '<button class="secondary-btn admin-action-btn">Salvar</button>' : '<span class="admin-status">Somente leitura</span>'}</form>`;
+        return `<form class="store-admin-item" data-store-form="${esc(product.key)}" data-category="${category}" data-catalog-name="${esc(product.name)}"><div><span class="admin-store-kind">${category}</span><b>${esc(product.name)}</b><small>${esc(product.quantityLabel || product.description || "")}</small></div>${pal ? `<label>Preço nível 80 (MV)<input name="level80Price" inputmode="numeric" value="${Number(prices[80] || product.victoryCoins)}" ${canManage ? "" : "disabled"}></label><label>Preço nível 255 (MV)<input name="level255Price" inputmode="numeric" value="${Number(prices[255] || product.victoryCoins)}" ${canManage ? "" : "disabled"}></label><label class="admin-active"><input name="level80Active" type="checkbox" ${levels[80] !== false ? "checked" : ""} ${canManage ? "" : "disabled"}> Nível 80</label><label class="admin-active"><input name="level255Active" type="checkbox" ${levels[255] !== false ? "checked" : ""} ${canManage ? "" : "disabled"}> Nível 255</label>` : equipment ? `<label>Preço normal (MV)<input name="price" inputmode="numeric" value="${Number(normal)}" ${canManage ? "" : "disabled"}></label><label>Preço lendário (MV)<input name="legendaryPrice" inputmode="numeric" value="${Number(legendary)}" ${canManage ? "" : "disabled"}></label>` : `<label>${resource ? "Preço por unidade (MV)" : "Preço (MV)"}<input name="price" inputmode="numeric" value="${Number(product.victoryCoins)}" ${canManage ? "" : "disabled"}></label>`}<label class="admin-active"><input name="active" type="checkbox" ${product.active ? "checked" : ""} ${canManage ? "" : "disabled"}> Ativo</label>${canManage ? '<button class="secondary-btn admin-action-btn">Salvar</button>' : '<span class="admin-status">Somente leitura</span>'}</form>`;
       })
       .join("") || '<div class="admin-empty">Nenhum item nesta categoria.</div>'
   }</div></section>`;

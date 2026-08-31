@@ -86,6 +86,19 @@ export default async function handler(req, res) {
         metadata: { ...item.metadata, equipment_tier: requestedTier }
       };
     }
+    if (item.category === 'resources') {
+      const quantity = Math.floor(Number(req.body?.quantity || 0));
+      const unitPrice = Number(item.victoryCoins);
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10000) return json(res, 400, { error: 'Escolha uma quantidade entre 1 e 10.000 unidades.' });
+      if (!Number.isInteger(unitPrice) || unitPrice < 1) return json(res, 500, { error: 'O preço por unidade deste recurso ainda não foi configurado.' });
+      const victoryCoins = unitPrice * quantity;
+      if (victoryCoins > 100000) return json(res, 400, { error: 'O total desta compra não pode passar de 100.000 MV.' });
+      selectedItem = {
+        ...item,
+        victoryCoins,
+        metadata: { ...item.metadata, quantity, unit_victory_coins: unitPrice }
+      };
+    }
 
     const result = await serviceFetch('rpc/create_catalog_order_with_victory_coins', {
       method: 'POST',
@@ -96,7 +109,11 @@ export default async function handler(req, res) {
         p_category: selectedItem.category,
         p_victory_coins: selectedItem.victoryCoins,
         p_server_number: serverNumber,
-        p_metadata: { ...selectedItem.metadata, source_url: item.sourceUrl, quantity_label: item.quantityLabel }
+        p_metadata: {
+          ...selectedItem.metadata,
+          source_url: item.sourceUrl,
+          quantity_label: item.category === 'resources' ? `${selectedItem.metadata.quantity} unidades` : item.quantityLabel
+        }
       })
     });
     return json(res, 200, { orderId: result, item: selectedItem.name, victoryCoins: selectedItem.victoryCoins });

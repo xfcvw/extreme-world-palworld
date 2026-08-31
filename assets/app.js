@@ -119,7 +119,7 @@ function renderShop(){
     const equipmentPrices=product.metadata?.equipment_prices||{};
     const normalEquipmentPrice=Number(equipmentPrices.normal||(category==='weapons'?2:3));
     const legendaryEquipmentPrice=Number(equipmentPrices.legendary||(category==='weapons'?6:5));
-    const equipmentPrice=category==='weapons'||category==='armor'?`${coins(normalEquipmentPrice)}–${coins(legendaryEquipmentPrice)} MV`: `${coins(product.victoryCoins)} MV`;
+    const equipmentPrice=category==='weapons'||category==='armor'?`${coins(normalEquipmentPrice)}–${coins(legendaryEquipmentPrice)} MV`:category==='resources'?`${coins(product.victoryCoins)} MV / un.`:`${coins(product.victoryCoins)} MV`;
     return `<article class="shop-card shop-${esc(category)}"><div class="shop-card-top"><span class="shop-category">${emoji} ${label}</span>${quantity}</div><div class="shop-image">${image}</div><h3>${esc(product.name)}</h3><p>${esc(product.description||'Item para entrega no servidor.')}</p><footer><div><small>Entrega no jogo</small><strong>${equipmentPrice}</strong></div><button class="buy-btn" data-shop-buy="${esc(product.key)}">Comprar</button></footer>${source}</article>`;
   }).join(''):`<div class="empty-state"><b>Nenhum item nesta categoria</b><p>Tente outro termo ou escolha uma categoria diferente.</p></div>`;
   const pagination=$('#shop-pagination');
@@ -135,24 +135,28 @@ function openShopPurchase(item){
   if(!session){toast('Entre com Discord para comprar com Moedas da Vitória.');signIn();return}
   if(!profile?.palworld_nickname)return openOnboarding();
   if(shopCategory(item)==='pals')return openCatalogPalPurchase(item);
-  const isEquipment=['weapons','armor'].includes(shopCategory(item));
+  const category=shopCategory(item),isEquipment=['weapons','armor'].includes(category),isResource=category==='resources';
   const equipmentPrices=item.metadata?.equipment_prices||{};
   const normalPrice=Number(equipmentPrices.normal||(shopCategory(item)==='weapons'?2:3));
   const legendaryPrice=Number(equipmentPrices.legendary||(shopCategory(item)==='weapons'?6:5));
   const tierControl=isEquipment?`<label>Qualidade<select name="equipmentTier"><option value="normal">Normal — ${normalPrice} MV</option><option value="legendary">Lendária — ${legendaryPrice} MV</option></select></label>`:'';
-  modal(`<span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>${esc(item.name)}</h2><p>${isEquipment?'Escolha a qualidade.':'Serão descontadas '+`<b>${coins(item.victoryCoins)} Moedas da Vitória</b>.`} O pedido entra na fila para entrega manual de um ADM.</p><form id="shop-buy" class="form"><label>Servidor<select name="server"><option value="1" ${profile.default_server===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${profile.default_server===2?'selected':''}>Extreme World com Wipe</option></select></label>${tierControl}<button class="full-btn"></button></form>`);
+  const resourceControl=isResource?`<div class="coin-stepper" aria-label="Quantidade de ${esc(item.name)}"><button type="button" data-resource-change="-1" aria-label="Diminuir quantidade">−</button><output data-resource-quantity>1 unidade</output><button type="button" data-resource-change="1" aria-label="Aumentar quantidade">+</button></div><small>${coins(item.victoryCoins)} MV por unidade.</small>`:'';
+  modal(`<span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>${esc(item.name)}</h2><p>${isEquipment?'Escolha a qualidade.':isResource?'Escolha a quantidade; o total será calculado com o preço por unidade.':'Serão descontadas '+`<b>${coins(item.victoryCoins)} Moedas da Vitória</b>.`} O pedido entra na fila para entrega manual de um ADM.</p><form id="shop-buy" class="form"><label>Servidor<select name="server"><option value="1" ${profile.default_server===1?'selected':''}>Extreme World sem Wipe</option><option value="2" ${profile.default_server===2?'selected':''}>Extreme World com Wipe</option></select></label>${tierControl}${resourceControl}<button class="full-btn"></button></form>`);
   const form=$('#shop-buy'),button=form.querySelector('button'),tierSelect=form.querySelector('[name="equipmentTier"]');
-  const syncEquipmentPrice=()=>{const price=tierSelect?.value==='legendary'?legendaryPrice:(isEquipment?normalPrice:item.victoryCoins);button.textContent=`Comprar por ${coins(price)} MV`};
-  if(tierSelect)tierSelect.onchange=syncEquipmentPrice;syncEquipmentPrice();
+  let resourceQuantity=1;
+  const syncPurchasePrice=()=>{const unitPrice=tierSelect?.value==='legendary'?legendaryPrice:(isEquipment?normalPrice:item.victoryCoins),quantity=isResource?resourceQuantity:1,total=unitPrice*quantity,output=form.querySelector('[data-resource-quantity]');if(output)output.textContent=`${coins(quantity)} ${quantity===1?'unidade':'unidades'}`;button.textContent=isResource?`Comprar ${coins(quantity)} por ${coins(total)} MV`:`Comprar por ${coins(total)} MV`};
+  if(tierSelect)tierSelect.onchange=syncPurchasePrice;
+  $$('[data-resource-change]').forEach(change=>change.onclick=()=>{resourceQuantity=Math.max(1,Math.min(10000,resourceQuantity+Number(change.dataset.resourceChange)));syncPurchasePrice()});
+  syncPurchasePrice();
   form.onsubmit=async event=>{
     event.preventDefault();button.disabled=true;button.textContent='Criando pedido...';
     try{
       const serverNumber=Number(new FormData(event.target).get('server'));
       const equipmentTier=tierSelect?.value;
-      const response=await fetch('/api/catalog-purchase',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({catalogKey:item.key,serverNumber,equipmentTier})});
+      const response=await fetch('/api/catalog-purchase',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({catalogKey:item.key,serverNumber,equipmentTier,quantity:isResource?resourceQuantity:undefined})});
       const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Não foi possível criar o pedido.');
       closeModal();toast('Pedido criado! Aguarde a entrega do ADM.');await loadAccount();
-    }catch(error){toast(error.message);button.disabled=false;syncEquipmentPrice()}
+    }catch(error){toast(error.message);button.disabled=false;syncPurchasePrice()}
   };
 }
 function openCatalogPalPurchase(item){
