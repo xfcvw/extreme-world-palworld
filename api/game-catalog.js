@@ -21,7 +21,9 @@ export default async function handler(req, res) {
     const catalog = applyCatalogOverrides(base, overrides, { includeInactive });
     const category = String(req.query?.category || '').toLowerCase();
     const rows = ['pals', 'weapons', 'armor', 'resources'].includes(category) ? catalog.filter(item => item.category === category) : catalog;
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+    // Preços são alterados pelo painel e precisam aparecer imediatamente para
+    // quem acabou de salvar e para todos os jogadores na loja.
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
     return json(res, 200, { items: rows, summary: catalogSummary(catalog), updatedAt: new Date().toISOString() });
   } catch (error) {
     console.error('game catalog error', error);
