@@ -85,6 +85,18 @@ const palRequestSummary = (order) => {
   if (prefs.delivery_notes) parts.push(`Obs.: ${prefs.delivery_notes}`);
   return parts.join(" · ");
 };
+const deliveryQuantity = (order) => {
+  const item = (order?.order_items || [])[0];
+  const selectedQuantity = Number(item?.metadata?.quantity);
+  const recordedQuantity = Number(item?.quantity);
+  const packSize = Number(item?.metadata?.pack_size);
+  const quantity =
+    (Number.isInteger(selectedQuantity) && selectedQuantity > 0 && selectedQuantity) ||
+    (Number.isInteger(recordedQuantity) && recordedQuantity > 0 && recordedQuantity) ||
+    (Number.isInteger(packSize) && packSize > 0 && packSize) ||
+    1;
+  return `Quantidade: ${coins(quantity)} ${quantity === 1 ? "unidade" : "unidades"}`;
+};
 async function setDelivery(id, status) {
   const { error } = await supabase.rpc("staff_set_order_delivery_status", {
     p_order_id: id,
@@ -560,7 +572,7 @@ async function render() {
   ] = await Promise.all([
     supabase
       .from("orders")
-      .select("*,order_items(name_snapshot,metadata)")
+      .select("*,order_items(name_snapshot,quantity,metadata)")
       .order("created_at", { ascending: false })
       .limit(500),
     supabase
@@ -646,7 +658,7 @@ async function render() {
       '<div class="admin-empty">Nenhum jogador cadastrado ainda.</div>'
     }</div></section>
     <section id="catalog" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">CATÁLOGO</span><h3>Loja por Moedas da Vitória</h3><p class="admin-panel-note">Pals, armaduras, armas e recursos têm controles independentes. Pals usam preço e ativação separados para os níveis 80 e 255.</p></div><span class="admin-status">${storeProducts.length} itens</span></div>${["pals", "armor", "weapons", "resources"].map((category) => renderCatalogCategory(category, storeProducts, canManage)).join("")}</section>
-    <section id="deliveries" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">OPERAÇÃO</span><h3>Fila de entrega</h3></div></div>${pending.length ? `<div class="admin-table">${pending.map((o) => `<div class="admin-order-row"><b>#EW-${o.order_number}</b><div><b>${esc((o.order_items || [])[0]?.name_snapshot || "Pedido")}</b><small>${esc(o.palworld_nickname)} · Servidor ${o.server_number || "-"}${palRequestSummary(o) ? `<br>${esc(palRequestSummary(o))}` : ""}</small></div><div><small>${new Date(o.created_at).toLocaleString("pt-BR")}</small></div><div class="admin-actions"><span class="admin-status">${esc(statusLabel(o.status))}</span>${o.status !== "in_delivery" ? `<button class="secondary-btn admin-action-btn" data-delivery="${o.id}" data-status="in_delivery">Em entrega</button>` : ""}<button class="primary-btn admin-action-btn" data-delivery="${o.id}" data-status="delivered">Marcar entregue</button></div></div>`).join("")}</div>` : '<div class="admin-empty">Nenhum pedido aguardando entrega.</div>'}</section>
+    <section id="deliveries" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">OPERAÇÃO</span><h3>Fila de entrega</h3></div></div>${pending.length ? `<div class="admin-table">${pending.map((o) => `<div class="admin-order-row"><b>#EW-${o.order_number}</b><div><b>${esc((o.order_items || [])[0]?.name_snapshot || "Pedido")}</b><small>${esc(o.palworld_nickname)} · Servidor ${o.server_number || "-"}<br>${esc(deliveryQuantity(o))}${palRequestSummary(o) ? `<br>${esc(palRequestSummary(o))}` : ""}</small></div><div><small>${new Date(o.created_at).toLocaleString("pt-BR")}</small></div><div class="admin-actions"><span class="admin-status">${esc(statusLabel(o.status))}</span>${o.status !== "in_delivery" ? `<button class="secondary-btn admin-action-btn" data-delivery="${o.id}" data-status="in_delivery">Em entrega</button>` : ""}<button class="primary-btn admin-action-btn" data-delivery="${o.id}" data-status="delivered">Marcar entregue</button></div></div>`).join("")}</div>` : '<div class="admin-empty">Nenhum pedido aguardando entrega.</div>'}</section>
     <section id="tickets" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">ATENDIMENTO</span><h3>Tickets de suporte e compra</h3><p class="admin-panel-note">Apenas a equipe administrativa vê todos os chamados. Os jogadores veem somente os próprios tickets.</p></div><span id="admin-ticket-filter-count" class="admin-status">${ticketRows.length} tickets</span></div><div class="admin-ticket-filters"><label>Categoria<select id="ticket-category-filter"><option value="all">Todas</option><option value="support">Suporte</option><option value="purchase">Compra</option></select></label><label>Status<select id="ticket-status-filter"><option value="all">Todos</option><option value="open">Aberto</option><option value="in_progress">Em atendimento</option><option value="answered">Respondido</option><option value="closed">Fechado</option></select></label></div>${
       ticketRows.length
         ? `<div class="admin-ticket-list">${ticketRows
