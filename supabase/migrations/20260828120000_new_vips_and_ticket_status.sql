@@ -91,7 +91,7 @@ join lateral (
     ('vip-extreme', 'Escolha de 1 Vendedor Lendário ou Normal', 2),
     ('vip-extreme', '20 Moedas da Vitória', 3),
     ('vip-extreme', '40.000 de Ouro + 20.000 Moedas de Cachorro', 4),
-    ('vip-extreme', 'Transferência de até 10 packs de 500 itens e até 10 Pals comprados', 5),
+    ('vip-extreme', 'Transferência de até 10 packs de 500 itens e até 2 Pals comprados', 5),
     ('vip-extreme', 'Pals nível 255 entram como nível 80 no servidor Hard', 6),
     ('vip-extreme', '10% de desconto acima de R$ 50 + 1 cupom exclusivo de 50%', 7),
     ('vip-extreme', 'Passe livre em eventos com Bilhete de Batalha', 8),
