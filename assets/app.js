@@ -260,7 +260,7 @@ async function initCardForm(product,currencyQuantity=0){
         const btn=$('#form-checkout__submit');btn.disabled=true;btn.textContent='Processando...';
         try{
           const d=cardFormInstance.getCardFormData();
-          const result=await callCheckout({productId:product.id,currencyQuantity,serverNumber:profile.default_server||1,paymentMethod:'card',cardToken:d.token,paymentMethodId:d.paymentMethodId,installments:Number(d.installments)||1,payerEmail:d.cardholderEmail,identificationType:d.identificationType,identificationNumber:d.identificationNumber});
+          const result=await callCheckout({productId:product.id,currencyQuantity,serverNumber:profile.default_server||1,paymentMethod:'card',cardToken:d.token,paymentMethodId:d.paymentMethodId,installments:Number(d.installments)||1,payerEmail:d.cardholderEmail,identificationType:d.identificationType,identificationNumber:d.identificationNumber,couponCode:$('#checkout-coupon')?.value||''});
           modal(paymentResultHtml(result));
         }catch(e){toast(e.message);btn.disabled=false;btn.textContent=`Pagar ${brl(totalCents)}`}
       },
@@ -275,7 +275,7 @@ async function checkout(productId,name,currencyQuantity=0){
   if(!product)return toast('Produto indisponível.');
   const email=session.user.email||'';
   const totalCents=currencyQuantity?mvPrice(currencyQuantity):product.price_cents;
-  modal(`<span class="eyebrow blue">CHECKOUT TRANSPARENTE</span><h2>${esc(name||product.name)}</h2><p>Total: <b>${brl(totalCents)}</b>. Escolha como deseja pagar sem sair da Extreme World.</p><div class="payment-tabs"><button id="pay-pix" class="payment-tab active">PIX</button><button id="pay-card" class="payment-tab">Cartão</button></div><div id="payment-area"><form id="pix-form" class="payment-form"><label>E-mail para o pagamento<input name="email" type="email" value="${esc(email)}" required></label><button class="full-btn">Gerar Pix de ${brl(totalCents)}</button></form></div>`);
+  modal(`<span class="eyebrow blue">CHECKOUT TRANSPARENTE</span><h2>${esc(name||product.name)}</h2><p>Total: <b>${brl(totalCents)}</b>. Escolha como deseja pagar sem sair da Extreme World.</p><label class="payment-coupon">Cupom de desconto<input id="checkout-coupon" maxlength="32" placeholder="Opcional"></label><div class="payment-tabs"><button id="pay-pix" class="payment-tab active">PIX</button><button id="pay-card" class="payment-tab">Cartão</button></div><div id="payment-area"><form id="pix-form" class="payment-form"><label>E-mail para o pagamento<input name="email" type="email" value="${esc(email)}" required></label><button class="full-btn">Gerar Pix de ${brl(totalCents)}</button></form></div>`);
   const activate=(kind)=>{$$('.payment-tab').forEach(x=>x.classList.toggle('active',x.id===`pay-${kind}`));};
   $('#pay-pix').onclick=()=>{activate('pix');$('#payment-area').innerHTML=`<form id="pix-form" class="payment-form"><label>E-mail para o pagamento<input name="email" type="email" value="${esc(email)}" required></label><button class="full-btn">Gerar Pix de ${brl(totalCents)}</button></form>`;bindPix(product,currencyQuantity)};
   $('#pay-card').onclick=()=>{activate('card');$('#payment-area').innerHTML='<div id="card-area" class="payment-loading">Carregando formulário seguro...</div>';initCardForm(product,currencyQuantity).catch(e=>{$('#card-area').innerHTML=`<div class="payment-warning">${esc(e.message)}</div>`})};
@@ -284,7 +284,7 @@ async function checkout(productId,name,currencyQuantity=0){
 function bindPix(product,currencyQuantity=0){
   const form=$('#pix-form');if(!form)return;
   const totalCents=currencyQuantity?mvPrice(currencyQuantity):product.price_cents;
-  form.onsubmit=async e=>{e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;btn.textContent='Gerando Pix...';try{const f=new FormData(form);const result=await callCheckout({productId:product.id,currencyQuantity,serverNumber:profile.default_server||1,paymentMethod:'pix',payerEmail:String(f.get('email')||'')});showPixResult(result)}catch(err){toast(err.message);btn.disabled=false;btn.textContent=`Gerar Pix de ${brl(totalCents)}`}}
+  form.onsubmit=async e=>{e.preventDefault();const btn=form.querySelector('button');btn.disabled=true;btn.textContent='Gerando Pix...';try{const f=new FormData(form);const result=await callCheckout({productId:product.id,currencyQuantity,serverNumber:profile.default_server||1,paymentMethod:'pix',payerEmail:String(f.get('email')||''),couponCode:$('#checkout-coupon')?.value||''});showPixResult(result)}catch(err){toast(err.message);btn.disabled=false;btn.textContent=`Gerar Pix de ${brl(totalCents)}`}}
 }
 
 function openPal(p){openShopPurchase(p?.catalogItem)}

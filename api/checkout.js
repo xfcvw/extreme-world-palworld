@@ -76,7 +76,8 @@ export default async function handler(req,res){
       paymentMethodId,
       installments=1,
       identificationType,
-      identificationNumber
+      identificationNumber,
+      couponCode
     }=req.body||{};
 
     if(!['pix','card'].includes(paymentMethod)) return json(res,400,{error:'Forma de pagamento inválida.'});
@@ -91,7 +92,16 @@ export default async function handler(req,res){
       return json(res,400,{error:'Escolha entre 1 e 10.000 Moedas da Vitória.'});
     }
     const itemQuantity=isCurrency?requestedQuantity:1;
-    const totalCents=isCurrency?itemQuantity*MV_UNIT_PRICE_CENTS:Number(product.price_cents);
+    const subtotalCents=isCurrency?itemQuantity*MV_UNIT_PRICE_CENTS:Number(product.price_cents);
+    const normalizedCoupon=String(couponCode||'').trim().toUpperCase();
+    let coupon=null;
+    if(normalizedCoupon){
+      const coupons=await sb(`coupons?code=eq.${encodeURIComponent(normalizedCoupon)}&active=eq.true&select=code,discount_percent`);
+      coupon=coupons?.[0]||null;
+      if(!coupon) return json(res,400,{error:'Cupom inválido ou desativado.'});
+    }
+    const discountCents=coupon?Math.round(subtotalCents*Number(coupon.discount_percent)/100):0;
+    const totalCents=Math.max(1,subtotalCents-discountCents);
     const itemName=isCurrency?`${itemQuantity} Moedas da Vitória`:product.name;
 
     const profiles=await sb(`profiles?user_id=eq.${user.id}&select=palworld_nickname,default_server`);
@@ -109,8 +119,10 @@ export default async function handler(req,res){
       user_id:user.id,
       status:'pending_payment',
       payment_method:paymentMethod,
-      subtotal_cents:totalCents,
+      subtotal_cents:subtotalCents,
+      discount_cents:discountCents,
       total_cents:totalCents,
+      coupon_code:coupon?.code||null,
       palworld_nickname:nick,
       server_number:Number(serverNumber)||profiles?.[0]?.default_server||1
     })}))?.[0];
@@ -122,7 +134,7 @@ export default async function handler(req,res){
       name_snapshot:itemName,
       quantity:itemQuantity,
       unit_price_cents:isCurrency?MV_UNIT_PRICE_CENTS:product.price_cents,
-      metadata:isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{ }
+      metadata:{...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{}),...(coupon?{coupon_code:coupon.code,discount_percent:Number(coupon.discount_percent)}:{})}
     })});
 
     const paymentRow=(await sb('payments',{method:'POST',body:JSON.stringify({
@@ -132,7 +144,7 @@ export default async function handler(req,res){
       status:'pending',
       payment_method:paymentMethod,
       amount_cents:totalCents,
-      metadata:{integration:'checkout_transparente_orders',...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{})}
+      metadata:{integration:'checkout_transparente_orders',subtotal_cents:subtotalCents,discount_cents:discountCents,...(coupon?{coupon_code:coupon.code,discount_percent:Number(coupon.discount_percent)}:{}),...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{})}
     })}))?.[0];
 
     const amount=(totalCents/100).toFixed(2);
@@ -206,6 +218,7 @@ export default async function handler(req,res){
       rawStatus:mp.status||mpPayment.status||'',
       statusDetail:mp.status_detail||mpPayment.status_detail||'',
       paymentMethod,
+      coupon:coupon?{code:coupon.code,discountPercent:Number(coupon.discount_percent),discountCents}:null,
       pix:paymentMethod==='pix'?{
         ticketUrl:pm.ticket_url||null,
         qrCode:pm.qr_code||null,
