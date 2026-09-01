@@ -74,7 +74,11 @@ async function replaceRecentActivity(section) {
     search.oninput = (event) => {
       state.query = event.currentTarget.value;
       state.page = 1;
+      const cursor = event.currentTarget.selectionStart ?? state.query.length;
       draw();
+      const nextSearch = section.querySelector("[data-recent-activity-query]");
+      nextSearch?.focus();
+      nextSearch?.setSelectionRange(cursor, cursor);
     };
     section.querySelectorAll("[data-recent-page]").forEach((button) => {
       button.onclick = () => {
