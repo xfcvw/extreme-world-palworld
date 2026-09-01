@@ -88,9 +88,10 @@ export default async function handler(req, res) {
     }
     if (item.category === 'resources') {
       const quantity = Math.floor(Number(req.body?.quantity || 0));
-      const packSize = 2;
+      const packSize = Number(item.metadata?.pack_size) || 2;
       const packPrice = Number(item.victoryCoins);
-      if (!Number.isInteger(quantity) || quantity < packSize || quantity > 10000 || quantity % packSize !== 0) return json(res, 400, { error: 'Escolha uma quantidade par entre 2 e 10.000 unidades.' });
+      const maxQuantity = Math.max(10000, packSize * 10000);
+      if (!Number.isInteger(quantity) || quantity < packSize || quantity > maxQuantity || quantity % packSize !== 0) return json(res, 400, { error: `Escolha uma quantidade em pacotes de ${packSize.toLocaleString('pt-BR')} unidades.` });
       if (!Number.isInteger(packPrice) || packPrice < 1) return json(res, 500, { error: 'O preço do pacote deste recurso ainda não foi configurado.' });
       const packs = quantity / packSize;
       const victoryCoins = packPrice * packs;
