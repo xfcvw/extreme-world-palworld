@@ -57,6 +57,8 @@ const catalogPaginationState = {
   resources: { page: 1, query: "" },
 };
 const activityConsoleState = { server: "all", query: "", page: 1 };
+const buyerPaginationState = { page: 1 };
+const recentActivityState = { query: "", page: 1 };
 const activityServerLabel = (number) => Number(number) === 2 ? "Com Wipe" : "Sem Wipe";
 const activityDate = (value) => value ? new Date(value).toLocaleString("pt-BR") : "Ainda não sincronizado";
 const toast = (t) => {
@@ -360,6 +362,36 @@ function enhanceCatalogPagination(category) {
   draw();
 }
 
+function enhanceBuyerPagination() {
+  const section = document.querySelector("#buyers");
+  const grid = section?.querySelector(".buyer-admin-grid");
+  if (!section || !grid) return;
+  const cards = [...grid.querySelectorAll(".buyer-admin-card")];
+  if (!cards.length) return;
+  const controls = document.createElement("div");
+  controls.className = "activity-pagination buyer-pagination";
+  grid.insertAdjacentElement("afterend", controls);
+
+  const draw = () => {
+    const perPage = 8;
+    const totalPages = Math.max(1, Math.ceil(cards.length / perPage));
+    buyerPaginationState.page = Math.min(buyerPaginationState.page, totalPages);
+    const first = (buyerPaginationState.page - 1) * perPage;
+    cards.forEach((card, index) => {
+      card.hidden = index < first || index >= first + perPage;
+    });
+    controls.innerHTML = `<span>${cards.length} conta${cards.length === 1 ? "" : "s"} · Página ${buyerPaginationState.page} de ${totalPages}</span><div><button class="secondary-btn" data-buyer-page="prev" ${buyerPaginationState.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-buyer-page="next" ${buyerPaginationState.page === totalPages ? "disabled" : ""}>Próxima →</button></div>`;
+    controls.querySelectorAll("[data-buyer-page]").forEach((button) => {
+      button.onclick = () => {
+        buyerPaginationState.page += button.dataset.buyerPage === "next" ? 1 : -1;
+        draw();
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      };
+    });
+  };
+  draw();
+}
+
 function enhanceActivityConsole(activity) {
   const target = document.querySelector("#player-activity");
   if (!target) return;
@@ -547,6 +579,50 @@ function enhanceTicketConsole(
   draw();
 }
 
+function enhanceRecentActivity(orders) {
+  const target = document.querySelector("#recent-activity");
+  if (!target) return;
+
+  const draw = () => {
+    const query = normalize(recentActivityState.query);
+    const matching = orders.filter((order) => {
+      const itemNames = (order.order_items || [])
+        .map((item) => item?.name_snapshot || "")
+        .join(" ");
+      return !query ||
+        normalize(
+          `${order.order_number} ${order.palworld_nickname || ""} ${itemNames}`,
+        ).includes(query);
+    });
+    const perPage = 10;
+    const totalPages = Math.max(1, Math.ceil(matching.length / perPage));
+    recentActivityState.page = Math.min(recentActivityState.page, totalPages);
+    const visible = matching.slice(
+      (recentActivityState.page - 1) * perPage,
+      recentActivityState.page * perPage,
+    );
+
+    target.innerHTML = `<div class="profile-section-title"><div><span class="eyebrow blue">HISTÓRICO</span><h3>Atividade recente</h3><p class="admin-panel-note">Compras concluídas e em andamento no portal.</p></div><span class="admin-status">${matching.length} pedido${matching.length === 1 ? "" : "s"}</span></div><div class="activity-toolbar recent-activity-toolbar"><label>Buscar compra ou jogador<input data-recent-activity-query placeholder="Item, NickName ou pedido"></label></div><div class="admin-table">${visible.length ? visible.map((order) => { const items = order.order_items || []; const label = items.length ? items.map(purchaseLabel).join(" · ") : "Pedido"; return `<div class="admin-order-row"><b>#EW-${order.order_number}</b><div><b>${esc(label)}</b><small>${esc(order.palworld_nickname || "NickName não informado")}</small></div><div><small>${new Date(order.created_at).toLocaleString("pt-BR")}</small></div><span class="admin-status">${esc(statusLabel(order.status))}</span></div>`; }).join("") : '<div class="admin-empty">Nenhuma atividade encontrada com este filtro.</div>'}</div><div class="activity-pagination"><span>${matching.length} resultado${matching.length === 1 ? "" : "s"} · Página ${recentActivityState.page} de ${totalPages}</span><div><button class="secondary-btn" data-recent-activity-page="prev" ${recentActivityState.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-recent-activity-page="next" ${recentActivityState.page === totalPages ? "disabled" : ""}>Próxima →</button></div></div>`;
+
+    const search = target.querySelector("[data-recent-activity-query]");
+    search.value = recentActivityState.query;
+    search.oninput = (event) => {
+      recentActivityState.query = event.currentTarget.value;
+      recentActivityState.page = 1;
+      draw();
+    };
+    target.querySelectorAll("[data-recent-activity-page]").forEach((button) => {
+      button.onclick = () => {
+        recentActivityState.page +=
+          button.dataset.recentActivityPage === "next" ? 1 : -1;
+        draw();
+      };
+    });
+  };
+
+  draw();
+}
+
 async function render() {
   const session = await getSharedSession();
   if (!session) {
@@ -675,17 +751,7 @@ async function render() {
             .join("")}</div>`
         : '<div class="admin-empty">Nenhum ticket criado ainda.</div>'
     }</section>
-    <section class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow blue">HISTÓRICO</span><h3>Atividade recente</h3></div></div>${
-      paid.length
-        ? `<div class="admin-table">${paid
-            .slice(0, 10)
-            .map(
-              (o) =>
-                `<div class="admin-order-row"><b>#EW-${o.order_number}</b><div><b>${esc((o.order_items || [])[0]?.name_snapshot || "Pedido")}</b><small>${esc(o.palworld_nickname)}</small></div><div><small>${new Date(o.created_at).toLocaleString("pt-BR")}</small></div><span class="admin-status">${esc(statusLabel(o.status))}</span></div>`,
-            )
-            .join("")}</div>`
-        : '<div class="admin-empty">Sem atividade recente.</div>'
-    }</section>`;
+    <section id="recent-activity" class="admin-panel"><div class="admin-loading">Carregando atividade recente...</div></section>`;
   document
     .querySelectorAll("[data-delivery]")
     .forEach(
@@ -693,6 +759,7 @@ async function render() {
         (btn.onclick = () =>
           setDelivery(btn.dataset.delivery, btn.dataset.status)),
     );
+  enhanceBuyerPagination();
   document.querySelectorAll("[data-store-form]").forEach(
     (form) =>
       (form.onsubmit = (event) => {
@@ -753,6 +820,7 @@ async function render() {
   );
   ["pals", "armor", "weapons", "resources"].forEach(enhanceCatalogPagination);
   enhanceSyncConsole(activityResponse, profileByUser);
+  enhanceRecentActivity(paid);
   const applyTicketFilters = () => {
     const category =
         document.querySelector("#ticket-category-filter")?.value || "all",
