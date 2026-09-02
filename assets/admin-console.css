@@ -69,6 +69,7 @@
 .activity-summary-card em.fresh { color:#74e1a3; }.activity-summary-card em.stale { color:#ffcf71; }
 .activity-toolbar { display:grid; grid-template-columns:minmax(220px,1fr) 160px 180px; gap:10px; margin-bottom:13px; }
 .recent-activity-toolbar { grid-template-columns:minmax(220px,1fr); }
+.buyer-toolbar { grid-template-columns:minmax(220px,1fr) 190px; }
 .activity-toolbar label { display:grid; gap:6px; color:#8fa8bf; font-size:9px; font-weight:900; letter-spacing:.07em; text-transform:uppercase; }
 .activity-toolbar input,.activity-toolbar select { min-width:0; padding:11px 12px; border:1px solid #315470; border-radius:10px; background:#091725; color:#f2f8ff; font:inherit; font-size:12px; outline:0; }
 .activity-toolbar input:focus,.activity-toolbar select:focus { border-color:#5baaff; box-shadow:0 0 0 3px rgba(62,147,255,.14); }

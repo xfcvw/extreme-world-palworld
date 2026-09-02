@@ -29,9 +29,13 @@ async function serviceFetch(path, options = {}) {
 }
 
 export default async function handler(req, res) {
-  const couponMode = req.query?.resource === 'coupons';
+  const resource = req.query?.resource;
+  const couponMode = resource === 'coupons';
+  const ordersMode = resource === 'orders';
+  const revenueMode = resource === 'revenue';
   if (couponMode && !['GET', 'POST', 'PATCH', 'DELETE'].includes(req.method)) return reply(res, 405, { error: 'Method not allowed' });
-  if (!couponMode && req.method !== 'POST') return reply(res, 405, { error: 'Method not allowed' });
+  if ((ordersMode || revenueMode) && req.method !== 'GET') return reply(res, 405, { error: 'Method not allowed' });
+  if (!couponMode && !ordersMode && !revenueMode && req.method !== 'POST') return reply(res, 405, { error: 'Method not allowed' });
   if (!SUPABASE_URL || !PUBLISHABLE || !SERVICE_ROLE) return reply(res, 503, { error: 'A administração ainda não foi configurada.' });
 
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
@@ -43,6 +47,28 @@ export default async function handler(req, res) {
     if (!userResponse.ok || !user?.id) return reply(res, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
     const [profile] = await serviceFetch(`profiles?select=role&user_id=eq.${encodeURIComponent(user.id)}&limit=1`);
+
+    if (revenueMode) {
+      if (profile?.role !== 'owner') return reply(res, 403, { error: 'Somente Owner pode ver o faturamento.' });
+      const rows = await serviceFetch('rpc/owner_revenue_summary', {
+        method: 'POST',
+        body: JSON.stringify({ p_actor_user_id: user.id })
+      });
+      const summary = rows?.[0] || { total_cents: 0, approved_payments: 0, paying_customers: 0 };
+      return reply(res, 200, {
+        summary: {
+          totalCents: Number(summary.total_cents || 0),
+          approvedPayments: Number(summary.approved_payments || 0),
+          payingCustomers: Number(summary.paying_customers || 0)
+        }
+      });
+    }
+
+    if (ordersMode) {
+      if (!['owner', 'admin', 'support'].includes(profile?.role)) return reply(res, 403, { error: 'Sua conta não possui acesso aos pedidos.' });
+      const orders = await serviceFetch('orders?select=id,user_id,status,order_number,palworld_nickname,server_number,created_at,order_items(name_snapshot,quantity,metadata)&order=created_at.desc&limit=500');
+      return reply(res, 200, { orders });
+    }
 
     if (couponMode) {
       if (!['owner', 'admin'].includes(profile?.role)) return reply(res, 403, { error: 'Apenas Owner ou Admin pode gerenciar cupons.' });

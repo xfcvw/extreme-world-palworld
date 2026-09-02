@@ -10,6 +10,11 @@ const esc = (v) =>
   );
 const coins = (value) =>
   new Intl.NumberFormat("pt-BR").format(Number(value || 0));
+const money = (cents) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(cents || 0) / 100);
 const inputCoins = (value) =>
   Number(String(value ?? "").replace(/[^0-9]/g, ""));
 const roleLabel = (role) =>
@@ -57,7 +62,7 @@ const catalogPaginationState = {
   resources: { page: 1, query: "" },
 };
 const activityConsoleState = { server: "all", query: "", page: 1 };
-const buyerPaginationState = { page: 1 };
+const buyerPaginationState = { page: 1, query: "", role: "all" };
 const recentActivityState = { query: "", page: 1 };
 const activityServerLabel = (number) => Number(number) === 2 ? "Com Wipe" : "Sem Wipe";
 const activityDate = (value) => value ? new Date(value).toLocaleString("pt-BR") : "Ainda não sincronizado";
@@ -373,14 +378,22 @@ function enhanceBuyerPagination() {
   grid.insertAdjacentElement("afterend", controls);
 
   const draw = () => {
+    const matching = cards.filter((card) => {
+      const matchesQuery = !buyerPaginationState.query ||
+        normalize(card.dataset.buyerSearch || "").includes(normalize(buyerPaginationState.query));
+      const matchesRole = buyerPaginationState.role === "all" ||
+        card.dataset.buyerRole === buyerPaginationState.role;
+      return matchesQuery && matchesRole;
+    });
     const perPage = 8;
-    const totalPages = Math.max(1, Math.ceil(cards.length / perPage));
+    const totalPages = Math.max(1, Math.ceil(matching.length / perPage));
     buyerPaginationState.page = Math.min(buyerPaginationState.page, totalPages);
     const first = (buyerPaginationState.page - 1) * perPage;
-    cards.forEach((card, index) => {
-      card.hidden = index < first || index >= first + perPage;
+    const visible = new Set(matching.slice(first, first + perPage));
+    cards.forEach((card) => {
+      card.hidden = !visible.has(card);
     });
-    controls.innerHTML = `<span>${cards.length} conta${cards.length === 1 ? "" : "s"} · Página ${buyerPaginationState.page} de ${totalPages}</span><div><button class="secondary-btn" data-buyer-page="prev" ${buyerPaginationState.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-buyer-page="next" ${buyerPaginationState.page === totalPages ? "disabled" : ""}>Próxima →</button></div>`;
+    controls.innerHTML = `<span>${matching.length} resultado${matching.length === 1 ? "" : "s"} · Página ${buyerPaginationState.page} de ${totalPages}</span><div><button class="secondary-btn" data-buyer-page="prev" ${buyerPaginationState.page === 1 ? "disabled" : ""}>← Anterior</button><button class="secondary-btn" data-buyer-page="next" ${buyerPaginationState.page === totalPages ? "disabled" : ""}>Próxima →</button></div>`;
     controls.querySelectorAll("[data-buyer-page]").forEach((button) => {
       button.onclick = () => {
         buyerPaginationState.page += button.dataset.buyerPage === "next" ? 1 : -1;
@@ -389,6 +402,25 @@ function enhanceBuyerPagination() {
       };
     });
   };
+
+  const search = section.querySelector("[data-buyer-search]");
+  const role = section.querySelector("[data-buyer-role]");
+  if (search) {
+    search.value = buyerPaginationState.query;
+    search.oninput = (event) => {
+      buyerPaginationState.query = event.currentTarget.value;
+      buyerPaginationState.page = 1;
+      draw();
+    };
+  }
+  if (role) {
+    role.value = buyerPaginationState.role;
+    role.onchange = (event) => {
+      buyerPaginationState.role = event.currentTarget.value;
+      buyerPaginationState.page = 1;
+      draw();
+    };
+  }
   draw();
 }
 
@@ -642,7 +674,7 @@ async function render() {
     return;
   }
   const [
-    { data: orders },
+    ordersResponse,
     { data: profiles },
     { data: products },
     { data: wallets },
@@ -650,12 +682,14 @@ async function render() {
     { data: tickets },
     { data: ticketMessages },
     activityResponse,
+    revenueResponse,
   ] = await Promise.all([
-    supabase
-      .from("orders")
-      .select("*,order_items(name_snapshot,quantity,metadata)")
-      .order("created_at", { ascending: false })
-      .limit(500),
+    fetch("/api/admin-role-assignment?resource=orders", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: "no-store",
+    })
+      .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("orders unavailable")))
+      .catch(() => ({ orders: [] })),
     supabase
       .from("profiles")
       .select("user_id,display_name,discord_username,palworld_nickname,role")
@@ -682,7 +716,16 @@ async function render() {
     fetch("/api/palworld?mode=admin-sync", { headers: { Authorization: `Bearer ${session.access_token}` }, cache: "no-store" })
       .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("sync unavailable")))
       .catch(() => null),
+    profile.role === "owner"
+      ? fetch("/api/admin-role-assignment?resource=revenue", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        })
+          .then(async (response) => response.ok ? response.json() : Promise.reject(new Error("revenue unavailable")))
+          .catch(() => null)
+      : Promise.resolve(null),
   ]);
+  const orders = ordersResponse?.orders || [];
   const pending = (orders || []).filter((o) =>
     ["awaiting_delivery", "in_delivery", "paid"].includes(o.status),
   );
@@ -691,6 +734,7 @@ async function render() {
       o.status,
     ),
   );
+  const revenue = revenueResponse?.summary || null;
   const storeProducts = catalogResponse?.items || [];
   const canManage = ["owner", "admin"].includes(profile.role);
   const walletByUser = new Map(
@@ -719,8 +763,9 @@ async function render() {
     <article class="admin-stat-card"><span>PLAYERS</span><b>${profiles?.length || 0}</b><small>Contas no portal</small></article>
     <article class="admin-stat-card"><span>CATÁLOGO</span><b>${storeProducts.length || 0}</b><small>Itens disponíveis na loja</small></article>
     <article class="admin-stat-card"><span>ENTREGAS PENDENTES</span><b>${pending.length}</b><small>Exigem ação da equipe</small></article>
+    ${profile.role === "owner" ? `<article class="admin-stat-card owner-revenue-card"><span>FATURAMENTO CONFIRMADO</span><b>${money(revenue?.totalCents || 0)}</b><small>${Number(revenue?.approvedPayments || 0)} pagamento(s) aprovado(s) · ${Number(revenue?.payingCustomers || 0)} cliente(s)</small></article>` : ""}
     <section id="player-activity" class="admin-panel"><div class="admin-loading">Carregando atividade dos servidores...</div></section>
-    <section id="buyers" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">CLIENTES E CARTEIRAS</span><h3>Compradores, MV e cargos</h3><p class="admin-panel-note">Owner pode definir cargos; Owner e Admin podem creditar ou retirar MV. Todas as alterações ficam registradas.</p></div><span class="admin-status">${profiles?.length || 0} contas</span></div><div class="buyer-admin-grid">${
+    <section id="buyers" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">CLIENTES E CARTEIRAS</span><h3>Compradores, MV e cargos</h3><p class="admin-panel-note">Owner pode definir cargos; Owner e Admin podem creditar ou retirar MV. Todas as alterações ficam registradas.</p></div><span class="admin-status">${profiles?.length || 0} contas</span></div><div class="activity-toolbar buyer-toolbar"><label>Buscar jogador ou cargo<input data-buyer-search placeholder="Nome, Discord, NickName ou cargo"></label><label>Cargo<select data-buyer-role><option value="all">Todos</option><option value="owner">Owner</option><option value="admin">Admin</option><option value="support">Suporte</option><option value="player">Cliente / Jogador</option></select></label></div><div class="buyer-admin-grid">${
       (profiles || [])
         .map((player) => {
           const playerOrders = ordersByUser.get(player.user_id) || [];
@@ -733,7 +778,8 @@ async function render() {
             .filter(Boolean);
           const canSetRole =
             profile.role === "owner" && player.user_id !== profile.user_id;
-          return `<article class="buyer-admin-card"><div class="buyer-admin-head"><div><b>${esc(player.display_name || player.discord_username || "Jogador")}</b><small>${esc(player.discord_username ? `@${player.discord_username.replace(/^@/, "")}` : player.palworld_nickname || "Discord não informado")}</small></div><span class="admin-status">${coins(wallet?.balance || 0)} MV</span></div><div class="buyer-account-id" title="ID da conta usado para cupom exclusivo"><span>${esc(player.user_id)}</span><button type="button" class="secondary-btn" data-copy-account-id="${esc(player.user_id)}">Copiar ID</button></div><p><b>Compras:</b> ${purchases.length ? esc(purchases.join(" · ")) : "Nenhuma compra registrada"}</p><small>${playerOrders.length} pedido(s) no portal · Cargo: ${esc(roleLabel(player.role))}</small>${canSetRole ? `<form class="role-adjust-form" data-role-form="${esc(player.user_id)}"><select name="role"><option value="player" ${player.role === "player" ? "selected" : ""}>Cliente / Jogador</option><option value="support" ${player.role === "support" ? "selected" : ""}>Suporte</option><option value="admin" ${player.role === "admin" ? "selected" : ""}>Admin</option><option value="owner" ${player.role === "owner" ? "selected" : ""}>Owner</option></select><button class="secondary-btn admin-action-btn">Salvar cargo</button></form>` : ""}${canManage && wallet ? `<form class="wallet-adjust-form" data-wallet-form="${esc(player.user_id)}"><select name="direction"><option value="credit">Adicionar MV</option><option value="debit">Retirar MV</option></select><input name="amount" inputmode="numeric" min="1" placeholder="Quantidade" required><input name="reason" maxlength="220" placeholder="Motivo do ajuste" required><button class="secondary-btn admin-action-btn">Aplicar ajuste</button></form>` : ""}</article>`;
+          const buyerSearch = `${player.display_name || ""} ${player.discord_username || ""} ${player.palworld_nickname || ""} ${roleLabel(player.role)}`;
+          return `<article class="buyer-admin-card" data-buyer-role="${esc(player.role || "player")}" data-buyer-search="${esc(buyerSearch)}"><div class="buyer-admin-head"><div><b>${esc(player.display_name || player.discord_username || "Jogador")}</b><small>${esc(player.discord_username ? `@${player.discord_username.replace(/^@/, "")}` : player.palworld_nickname || "Discord não informado")}</small></div><span class="admin-status">${coins(wallet?.balance || 0)} MV</span></div><div class="buyer-account-id" title="ID da conta usado para cupom exclusivo"><span>${esc(player.user_id)}</span><button type="button" class="secondary-btn" data-copy-account-id="${esc(player.user_id)}">Copiar ID</button></div><p><b>Compras:</b> ${purchases.length ? esc(purchases.join(" · ")) : "Nenhuma compra registrada"}</p><small>${playerOrders.length} pedido(s) no portal · Cargo: ${esc(roleLabel(player.role))}</small>${canSetRole ? `<form class="role-adjust-form" data-role-form="${esc(player.user_id)}"><select name="role"><option value="player" ${player.role === "player" ? "selected" : ""}>Cliente / Jogador</option><option value="support" ${player.role === "support" ? "selected" : ""}>Suporte</option><option value="admin" ${player.role === "admin" ? "selected" : ""}>Admin</option><option value="owner" ${player.role === "owner" ? "selected" : ""}>Owner</option></select><button class="secondary-btn admin-action-btn">Salvar cargo</button></form>` : ""}${canManage && wallet ? `<form class="wallet-adjust-form" data-wallet-form="${esc(player.user_id)}"><select name="direction"><option value="credit">Adicionar MV</option><option value="debit">Retirar MV</option></select><input name="amount" inputmode="numeric" min="1" placeholder="Quantidade" required><input name="reason" maxlength="220" placeholder="Motivo do ajuste" required><button class="secondary-btn admin-action-btn">Aplicar ajuste</button></form>` : ""}</article>`;
         })
         .join("") ||
       '<div class="admin-empty">Nenhum jogador cadastrado ainda.</div>'
