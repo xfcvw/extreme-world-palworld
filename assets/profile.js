@@ -1,6 +1,23 @@
 import { SITE_ORIGIN, getSharedSession, supabase, syncDiscordRole } from '/assets/auth.js';
-const $=s=>document.querySelector(s);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const coins=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
+const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const coins=n=>new Intl.NumberFormat('pt-BR').format(Number(n||0));
 function toast(message){const el=$('#toast');el.textContent=message;el.hidden=false;clearTimeout(window.__t);window.__t=setTimeout(()=>el.hidden=true,3200)}
+function closePaymentModal(){$('#profile-payment-modal').hidden=true}
+function showPendingPix(data){
+  const pix=data?.pix||{};
+  $('#profile-payment-modal-body').innerHTML=`<span class="eyebrow blue">PIX • PEDIDO #EW-${esc(data.orderNumber)}</span><h2>Finalize seu pagamento</h2><p>Use o QR Code ou copie o código Pix. Depois da aprovação, o pedido será atualizado automaticamente.</p><div class="pix-box">${pix.qrCodeBase64?`<img class="pix-qr" src="data:image/png;base64,${pix.qrCodeBase64}" alt="QR Code Pix do pedido">`:''}${pix.qrCode?`<label>Pix Copia e Cola<textarea id="profile-pix-code" readonly>${esc(pix.qrCode)}</textarea></label><button id="profile-copy-pix" class="full-btn">Copiar código Pix</button>`:''}${pix.ticketUrl?`<a class="payment-link" target="_blank" rel="noopener" href="${esc(pix.ticketUrl)}">Abrir instruções do Pix ↗</a>`:''}</div>`;
+  $('#profile-payment-modal').hidden=false;
+  if($('#profile-copy-pix'))$('#profile-copy-pix').onclick=async()=>{await navigator.clipboard.writeText($('#profile-pix-code').value);toast('Código Pix copiado.')};
+}
+async function reopenPix(orderNumber,activeSession,button){
+  button.disabled=true;button.textContent='Abrindo Pix...';
+  try{
+    const response=await fetch(`/api/checkout?orderNumber=${encodeURIComponent(orderNumber)}`,{headers:{Authorization:`Bearer ${activeSession.access_token}`},cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Não foi possível abrir o Pix.');
+    if(!data.pix){toast(data.status==='approved'?'Este pagamento já foi aprovado.':'Este Pix não está mais pendente.');scheduleProfileLoad();return;}
+    showPendingPix(data);
+  }catch(error){toast(error.message)}finally{button.disabled=false;button.textContent='Pagar com Pix';}
+}
 const statusLabel=s=>({pending_payment:'Aguardando pagamento',paid:'Pago',awaiting_delivery:'Aguardando entrega',in_delivery:'Em entrega',delivered:'Entregue',cancelled:'Cancelado',refunded:'Reembolsado'}[s]||s);
 const txLabel=t=>({purchase_credit:'Compra de moedas',purchase_debit:'Compra com moedas',admin_credit:'Crédito de ADM',admin_debit:'Débito de ADM',refund:'Reembolso',bonus:'Bônus',adjustment:'Ajuste'}[t]||t);
 const serverLabel=number=>Number(number)===2?'Extreme World com Wipe':'Extreme World sem Wipe';
@@ -10,6 +27,7 @@ const purchaseLabel=item=>`${item?.name_snapshot||'Pedido'} × ${coins(itemQuant
 async function signIn(){const {error}=await supabase.auth.signInWithOAuth({provider:'discord',options:{redirectTo:`${SITE_ORIGIN}/perfil.html`}});if(error)toast(error.message)}
 $('#profile-login').onclick=event=>{event.preventDefault();signIn()};
 $('#profile-logout').onclick=async()=>{await supabase.auth.signOut();location.href='/'};
+$('#profile-payment-close').onclick=closePaymentModal;$('#profile-payment-modal').onclick=event=>{if(event.target.id==='profile-payment-modal')closePaymentModal()};
 function renderCharacterSync(data){
   const target=$('#player-sync-result'),caption=$('#player-sync-caption'),updated=$('#player-sync-updated');if(!target)return;
   updated.textContent=data?.updatedAt?`Atualizado: ${dateTime(data.updatedAt)}`:'';
@@ -51,7 +69,8 @@ $('#profile-loading').hidden=true;$('#profile-content').hidden=false;$('#profile
 syncGameData(session);
 const vipOrder=(o||[]).find(x=>(x.order_items||[]).some(i=>i.vip_plan_id)&&['awaiting_delivery','in_delivery','delivered','paid'].includes(x.status));if(vipOrder){const item=(vipOrder.order_items||[]).find(i=>i.vip_plan_id);$('#vip-badge').textContent=`${item?.name_snapshot||'VIP'} · ${statusLabel(vipOrder.status)}`}
 const form=$('#profile-form');form.nick.value=p?.palworld_nickname||'';form.nickServer1.value=p?.palworld_nickname_server_1||'';form.nickServer2.value=p?.palworld_nickname_server_2||'';form.server.value=String(p?.default_server||1);form.bio.value=p?.bio||'';form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form);const {error}=await supabase.from('profiles').update({palworld_nickname:String(f.get('nick')).trim(),palworld_nickname_server_1:String(f.get('nickServer1')||'').trim()||null,palworld_nickname_server_2:String(f.get('nickServer2')||'').trim()||null,default_server:Number(f.get('server')),bio:String(f.get('bio')||'').trim()}).eq('user_id',uid);if(error)return toast(error.message);toast('Perfil atualizado.');setTimeout(()=>location.reload(),500)};
-$('#orders-count').textContent=String((o||[]).length);$('#profile-orders').innerHTML=(o||[]).length?(o||[]).map(x=>`<div class="order-row"><span><b>#EW-${x.order_number}</b><br><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></span><span><b>${esc(purchaseLabel((x.order_items||[])[0]))}</b><br><small>${esc(statusLabel(x.status))}</small></span></div>`).join(''):'<div class="empty-state"><b>Nenhum pedido ainda</b><p>Suas compras aparecerão aqui.</p></div>';
+$('#orders-count').textContent=String((o||[]).length);$('#profile-orders').innerHTML=(o||[]).length?(o||[]).map(x=>`<div class="order-row"><span><b>#EW-${x.order_number}</b><br><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></span><span><b>${esc(purchaseLabel((x.order_items||[])[0]))}</b><br><small>${esc(statusLabel(x.status))}</small>${x.status==='pending_payment'&&x.payment_method==='pix'?`<button class="order-payment-action" data-reopen-pix="${x.order_number}">Pagar com Pix</button>`:''}</span></div>`).join(''):'<div class="empty-state"><b>Nenhum pedido ainda</b><p>Suas compras aparecerão aqui.</p></div>';
+$$('[data-reopen-pix]').forEach(button=>button.onclick=()=>reopenPix(button.dataset.reopenPix,session,button));
 $('#wallet-history').innerHTML=(t||[]).length?(t||[]).map(x=>`<div class="transaction-row"><div><b>${esc(txLabel(x.transaction_type))}</b><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></div><strong class="${Number(x.amount)>=0?'positive':'negative'}">${Number(x.amount)>=0?'+':''}${coins(x.amount)} MV</strong></div>`).join(''):'<div class="empty-state"><b>Sem movimentações</b><p>Compras e ajustes da carteira aparecerão aqui.</p></div>';
 }catch(error){console.error('Falha ao carregar o perfil:',error);$('#profile-loading').innerHTML='<b>Não foi possível recuperar sua sessão.</b><br><button id="profile-retry-login" class="discord-btn" style="margin-top:18px">Entrar com Discord</button>';$('#profile-retry-login').onclick=signIn;}}
 // O callback de autenticação é executado dentro do bloqueio interno do

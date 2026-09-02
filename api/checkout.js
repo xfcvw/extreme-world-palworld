@@ -51,8 +51,30 @@ async function quoteCoupon(code,userId,subtotalCents){
 }
 const publicCouponError=message=>/cupom|pedido inválido para este cupom|valor maior/i.test(message);
 
+async function reopenPendingPix(user, orderNumber){
+  const number=Number(orderNumber);
+  if(!Number.isInteger(number)||number<1)throw clientError('Pedido inválido.');
+  const orders=await sb(`orders?user_id=eq.${encodeURIComponent(user.id)}&order_number=eq.${number}&select=id,order_number,status,payment_method,total_cents&limit=1`);
+  const order=orders?.[0];
+  if(!order)throw clientError('Pedido não encontrado.');
+  if(order.status!=='pending_payment'||order.payment_method!=='pix')throw clientError('Este pedido não possui um Pix pendente para pagamento.');
+  const payments=await sb(`payments?order_id=eq.${encodeURIComponent(order.id)}&provider=eq.mercado_pago&payment_method=eq.pix&provider_payment_id=not.is.null&select=id,provider_payment_id&order=created_at.desc&limit=1`);
+  const payment=payments?.[0];
+  if(!payment?.provider_payment_id)throw clientError('O código Pix deste pedido não está mais disponível.');
+  const response=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(payment.provider_payment_id)}`,{headers:{Authorization:`Bearer ${MP_TOKEN}`}});
+  const mp=await response.json().catch(()=>({}));
+  if(!response.ok)throw clientError('Não foi possível recuperar este Pix agora.');
+  const normalized=normalizeMpStatus(mp);
+  await rpc('process_mercado_pago_payment',{p_order_id:order.id,p_provider_payment_id:String(payment.provider_payment_id),p_status:normalized,p_payment_method:'pix',p_raw_status:String(mp.status_detail||mp.status||''),p_metadata:mp});
+  if(['approved','rejected','cancelled','refunded'].includes(normalized))await rpc('finalize_coupon_redemption',{p_order_id:order.id,p_approved:normalized==='approved'}).catch(()=>{});
+  const method=mp?.transactions?.payments?.[0]?.payment_method||{};
+  if(!['pending','in_process'].includes(normalized))return {orderNumber:order.order_number,status:normalized};
+  if(!method.ticket_url&&!method.qr_code&&!method.qr_code_base64&&!method.qr_code_based64)throw clientError('Este código Pix expirou. Faça um novo pedido para gerar outro pagamento.');
+  return {orderNumber:order.order_number,status:normalized,pix:{ticketUrl:method.ticket_url||null,qrCode:method.qr_code||null,qrCodeBase64:method.qr_code_base64||method.qr_code_based64||null}};
+}
+
 export default async function handler(req,res){
-  if(req.method!=='POST')return json(res,405,{error:'Method not allowed'});
+  if(!['POST','GET'].includes(req.method))return json(res,405,{error:'Method not allowed'});
   if(!SUPABASE_URL||!PUBLISHABLE||!SERVICE_ROLE||!MP_TOKEN)return json(res,503,{error:'Pagamento ainda não foi configurado na Vercel.'});
   let internalOrder=null,providerCreated=false;
   try{
@@ -61,6 +83,7 @@ export default async function handler(req,res){
     const userResponse=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:PUBLISHABLE,Authorization:`Bearer ${access}`}});
     const user=await userResponse.json().catch(()=>null);
     if(!userResponse.ok||!user?.id)return json(res,401,{error:'Sessão inválida.'});
+    if(req.method==='GET')return json(res,200,await reopenPendingPix(user,req.query?.orderNumber));
     const input=req.body||{},item=await resolveProduct(input),couponCode=String(input.couponCode||'').trim().toUpperCase();
     if(input.intent==='quote'){
       const quote=await quoteCoupon(couponCode,user.id,item.subtotalCents);
