@@ -17,7 +17,9 @@ async function serviceFetch(path, options = {}) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return reply(res, 405, { error: 'Method not allowed' });
+  const couponMode = req.query?.resource === 'coupons';
+  if (couponMode && !['GET', 'POST', 'PATCH'].includes(req.method)) return reply(res, 405, { error: 'Method not allowed' });
+  if (!couponMode && req.method !== 'POST') return reply(res, 405, { error: 'Method not allowed' });
   if (!SUPABASE_URL || !PUBLISHABLE || !SERVICE_ROLE) return reply(res, 503, { error: 'A administração ainda não foi configurada.' });
 
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
@@ -29,6 +31,26 @@ export default async function handler(req, res) {
     if (!userResponse.ok || !user?.id) return reply(res, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
     const [profile] = await serviceFetch(`profiles?select=role&user_id=eq.${encodeURIComponent(user.id)}&limit=1`);
+
+    if (couponMode) {
+      if (!['owner', 'admin'].includes(profile?.role)) return reply(res, 403, { error: 'Apenas Owner ou Admin pode gerenciar cupons.' });
+      if (req.method === 'GET') return reply(res, 200, { coupons: await serviceFetch('coupons?select=*&order=created_at.desc') });
+
+      if (req.method === 'POST') {
+        const code = clean(req.body?.code, 32).toUpperCase();
+        const discountPercent = Number(req.body?.discountPercent);
+        if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return reply(res, 400, { error: 'Use de 3 a 32 letras, números, hífen ou sublinhado no cupom.' });
+        if (!Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 90) return reply(res, 400, { error: 'Informe uma porcentagem entre 1% e 90%.' });
+        const rows = await serviceFetch('coupons', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ code, discount_percent: discountPercent, created_by: user.id }) });
+        return reply(res, 201, { coupon: rows?.[0] });
+      }
+
+      const id = clean(req.body?.id, 80);
+      if (!isUuid(id)) return reply(res, 400, { error: 'Cupom inválido.' });
+      const rows = await serviceFetch(`coupons?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ active: Boolean(req.body?.active) }) });
+      return reply(res, 200, { coupon: rows?.[0] });
+    }
+
     if (profile?.role !== 'owner') return reply(res, 403, { error: 'Somente Owner pode alterar cargos.' });
 
     const targetUserId = clean(req.body?.targetUserId, 80);
@@ -43,6 +65,7 @@ export default async function handler(req, res) {
     return reply(res, 200, { role: String(result) });
   } catch (error) {
     const message = String(error?.message || '');
+    if (message.includes('duplicate key')) return reply(res, 409, { error: 'Já existe um cupom com esse nome.' });
     if (message.includes('cannot change own role')) return reply(res, 400, { error: 'Você não pode alterar o seu próprio cargo por este painel.' });
     if (message.includes('last owner')) return reply(res, 400, { error: 'Não é possível rebaixar o último Owner do portal.' });
     if (message.includes('profile not found')) return reply(res, 404, { error: 'Perfil do jogador não encontrado.' });
