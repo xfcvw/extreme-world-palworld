@@ -91,17 +91,15 @@ async function cancelPendingPix(user, orderNumber){
     if(['approved','rejected','cancelled','refunded'].includes(currentStatus))await rpc('finalize_coupon_redemption',{p_order_id:order.id,p_approved:currentStatus==='approved'}).catch(()=>{});
     throw clientError(currentStatus==='approved'?'Este pedido já foi pago e não pode ser cancelado.':'Este Pix não está mais pendente.');
   }
-  const providerPaymentId=mpOrder?.transactions?.payments?.[0]?.id;
-  if(!providerPaymentId)throw clientError('Não foi possível localizar a transação Pix para cancelar.');
-  const cancelResponse=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(providerPaymentId)}`,{method:'PUT',headers:{Authorization:`Bearer ${MP_TOKEN}`,'Content-Type':'application/json','X-Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({status:'cancelled'})});
-  const cancelledPayment=await cancelResponse.json().catch(()=>({}));
+  const cancelResponse=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(storedPayment.provider_payment_id)}/cancel`,{method:'POST',headers:{Authorization:`Bearer ${MP_TOKEN}`,'Content-Type':'application/json','X-Idempotency-Key':crypto.randomUUID()}});
+  const cancelledOrder=await cancelResponse.json().catch(()=>({}));
   if(!cancelResponse.ok){
-    console.error('Mercado Pago recusou o cancelamento do Pix.',{status:cancelResponse.status,code:cancelledPayment?.cause?.[0]?.code||cancelledPayment?.error||null,message:cancelledPayment?.message||null});
-    const reason=String(cancelledPayment?.message||'');
+    console.error('Mercado Pago recusou o cancelamento da ordem Pix.',{status:cancelResponse.status,code:cancelledOrder?.cause?.[0]?.code||cancelledOrder?.error||null,message:cancelledOrder?.message||null});
+    const reason=String(cancelledOrder?.message||'');
     if(/status|invalid|not valid/i.test(reason))throw clientError('Este Pix já mudou de status e não pode mais ser cancelado. Atualize a página para conferir.');
     throw clientError('O Mercado Pago não conseguiu cancelar este Pix agora. Tente novamente em alguns instantes.');
   }
-  await sb(`payments?id=eq.${encodeURIComponent(storedPayment.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled',raw_status:String(cancelledPayment.status_detail||cancelledPayment.status||'cancelled'),metadata:{order:mpOrder,cancelled_payment:cancelledPayment}})});
+  await sb(`payments?id=eq.${encodeURIComponent(storedPayment.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled',raw_status:String(cancelledOrder.status_detail||cancelledOrder.status||'cancelled'),metadata:{order:mpOrder,cancelled_order:cancelledOrder}})});
   await sb(`orders?id=eq.${encodeURIComponent(order.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled'})});
   await rpc('release_coupon_reservation',{p_order_id:order.id}).catch(()=>{});
   return {orderNumber:order.order_number,status:'cancelled'};
