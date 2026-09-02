@@ -72,9 +72,38 @@ async function reopenPendingPix(user, orderNumber){
   if(!method.ticket_url&&!method.qr_code&&!method.qr_code_base64&&!method.qr_code_based64)throw clientError('Este código Pix expirou. Faça um novo pedido para gerar outro pagamento.');
   return {orderNumber:order.order_number,status:normalized,pix:{ticketUrl:method.ticket_url||null,qrCode:method.qr_code||null,qrCodeBase64:method.qr_code_base64||method.qr_code_based64||null}};
 }
+async function cancelPendingPix(user, orderNumber){
+  const number=Number(orderNumber);
+  if(!Number.isInteger(number)||number<1)throw clientError('Pedido inválido.');
+  const orders=await sb(`orders?user_id=eq.${encodeURIComponent(user.id)}&order_number=eq.${number}&select=id,order_number,status,payment_method&limit=1`);
+  const order=orders?.[0];
+  if(!order)throw clientError('Pedido não encontrado.');
+  if(order.status!=='pending_payment'||order.payment_method!=='pix')throw clientError('Somente um Pix aguardando pagamento pode ser cancelado.');
+  const payments=await sb(`payments?order_id=eq.${encodeURIComponent(order.id)}&provider=eq.mercado_pago&payment_method=eq.pix&provider_payment_id=not.is.null&select=id,provider_payment_id&order=created_at.desc&limit=1`);
+  const storedPayment=payments?.[0];
+  if(!storedPayment?.provider_payment_id)throw clientError('Não foi possível localizar este pagamento.');
+  const orderResponse=await fetch(`https://api.mercadopago.com/v1/orders/${encodeURIComponent(storedPayment.provider_payment_id)}`,{headers:{Authorization:`Bearer ${MP_TOKEN}`}});
+  const mpOrder=await orderResponse.json().catch(()=>({}));
+  if(!orderResponse.ok)throw clientError('Não foi possível confirmar o estado deste Pix agora.');
+  const currentStatus=normalizeMpStatus(mpOrder);
+  if(!['pending','in_process'].includes(currentStatus)){
+    await rpc('process_mercado_pago_payment',{p_order_id:order.id,p_provider_payment_id:String(storedPayment.provider_payment_id),p_status:currentStatus,p_payment_method:'pix',p_raw_status:String(mpOrder.status_detail||mpOrder.status||''),p_metadata:mpOrder});
+    if(['approved','rejected','cancelled','refunded'].includes(currentStatus))await rpc('finalize_coupon_redemption',{p_order_id:order.id,p_approved:currentStatus==='approved'}).catch(()=>{});
+    throw clientError(currentStatus==='approved'?'Este pedido já foi pago e não pode ser cancelado.':'Este Pix não está mais pendente.');
+  }
+  const providerPaymentId=mpOrder?.transactions?.payments?.[0]?.id;
+  if(!providerPaymentId)throw clientError('Não foi possível localizar a transação Pix para cancelar.');
+  const cancelResponse=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(providerPaymentId)}`,{method:'PUT',headers:{Authorization:`Bearer ${MP_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({status:'cancelled'})});
+  const cancelledPayment=await cancelResponse.json().catch(()=>({}));
+  if(!cancelResponse.ok)throw clientError('Este Pix não pôde ser cancelado; atualize a página para conferir o status.');
+  await sb(`payments?id=eq.${encodeURIComponent(storedPayment.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled',raw_status:String(cancelledPayment.status_detail||cancelledPayment.status||'cancelled'),metadata:{order:mpOrder,cancelled_payment:cancelledPayment}})});
+  await sb(`orders?id=eq.${encodeURIComponent(order.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled'})});
+  await rpc('release_coupon_reservation',{p_order_id:order.id}).catch(()=>{});
+  return {orderNumber:order.order_number,status:'cancelled'};
+}
 
 export default async function handler(req,res){
-  if(!['POST','GET'].includes(req.method))return json(res,405,{error:'Method not allowed'});
+  if(!['POST','GET','DELETE'].includes(req.method))return json(res,405,{error:'Method not allowed'});
   if(!SUPABASE_URL||!PUBLISHABLE||!SERVICE_ROLE||!MP_TOKEN)return json(res,503,{error:'Pagamento ainda não foi configurado na Vercel.'});
   let internalOrder=null,providerCreated=false;
   try{
@@ -84,6 +113,7 @@ export default async function handler(req,res){
     const user=await userResponse.json().catch(()=>null);
     if(!userResponse.ok||!user?.id)return json(res,401,{error:'Sessão inválida.'});
     if(req.method==='GET')return json(res,200,await reopenPendingPix(user,req.query?.orderNumber));
+    if(req.method==='DELETE')return json(res,200,await cancelPendingPix(user,req.query?.orderNumber));
     const input=req.body||{},item=await resolveProduct(input),couponCode=String(input.couponCode||'').trim().toUpperCase();
     if(input.intent==='quote'){
       const quote=await quoteCoupon(couponCode,user.id,item.subtotalCents);

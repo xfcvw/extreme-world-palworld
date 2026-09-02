@@ -18,6 +18,16 @@ async function reopenPix(orderNumber,activeSession,button){
     showPendingPix(data);
   }catch(error){toast(error.message)}finally{button.disabled=false;button.textContent='Pagar com Pix';}
 }
+async function cancelPix(orderNumber,activeSession,button){
+  if(!window.confirm(`Cancelar o pedido #EW-${orderNumber}? O Pix deixará de valer.`))return;
+  button.disabled=true;button.textContent='Cancelando...';
+  try{
+    const response=await fetch(`/api/checkout?orderNumber=${encodeURIComponent(orderNumber)}`,{method:'DELETE',headers:{Authorization:`Bearer ${activeSession.access_token}`},cache:'no-store'});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Não foi possível cancelar o pedido.');
+    toast(`Pedido #EW-${data.orderNumber} cancelado.`);scheduleProfileLoad();
+  }catch(error){toast(error.message)}finally{button.disabled=false;button.textContent='Cancelar pedido';}
+}
 const statusLabel=s=>({pending_payment:'Aguardando pagamento',paid:'Pago',awaiting_delivery:'Aguardando entrega',in_delivery:'Em entrega',delivered:'Entregue',cancelled:'Cancelado',refunded:'Reembolsado'}[s]||s);
 const txLabel=t=>({purchase_credit:'Compra de moedas',purchase_debit:'Compra com moedas',admin_credit:'Crédito de ADM',admin_debit:'Débito de ADM',refund:'Reembolso',bonus:'Bônus',adjustment:'Ajuste'}[t]||t);
 const serverLabel=number=>Number(number)===2?'Extreme World com Wipe':'Extreme World sem Wipe';
@@ -69,8 +79,9 @@ $('#profile-loading').hidden=true;$('#profile-content').hidden=false;$('#profile
 syncGameData(session);
 const vipOrder=(o||[]).find(x=>(x.order_items||[]).some(i=>i.vip_plan_id)&&['awaiting_delivery','in_delivery','delivered','paid'].includes(x.status));if(vipOrder){const item=(vipOrder.order_items||[]).find(i=>i.vip_plan_id);$('#vip-badge').textContent=`${item?.name_snapshot||'VIP'} · ${statusLabel(vipOrder.status)}`}
 const form=$('#profile-form');form.nick.value=p?.palworld_nickname||'';form.nickServer1.value=p?.palworld_nickname_server_1||'';form.nickServer2.value=p?.palworld_nickname_server_2||'';form.server.value=String(p?.default_server||1);form.bio.value=p?.bio||'';form.onsubmit=async e=>{e.preventDefault();const f=new FormData(form);const {error}=await supabase.from('profiles').update({palworld_nickname:String(f.get('nick')).trim(),palworld_nickname_server_1:String(f.get('nickServer1')||'').trim()||null,palworld_nickname_server_2:String(f.get('nickServer2')||'').trim()||null,default_server:Number(f.get('server')),bio:String(f.get('bio')||'').trim()}).eq('user_id',uid);if(error)return toast(error.message);toast('Perfil atualizado.');setTimeout(()=>location.reload(),500)};
-$('#orders-count').textContent=String((o||[]).length);$('#profile-orders').innerHTML=(o||[]).length?(o||[]).map(x=>`<div class="order-row"><span><b>#EW-${x.order_number}</b><br><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></span><span><b>${esc(purchaseLabel((x.order_items||[])[0]))}</b><br><small>${esc(statusLabel(x.status))}</small>${x.status==='pending_payment'&&x.payment_method==='pix'?`<button class="order-payment-action" data-reopen-pix="${x.order_number}">Pagar com Pix</button>`:''}</span></div>`).join(''):'<div class="empty-state"><b>Nenhum pedido ainda</b><p>Suas compras aparecerão aqui.</p></div>';
+$('#orders-count').textContent=String((o||[]).length);$('#profile-orders').innerHTML=(o||[]).length?(o||[]).map(x=>`<div class="order-row"><span><b>#EW-${x.order_number}</b><br><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></span><span><b>${esc(purchaseLabel((x.order_items||[])[0]))}</b><br><small>${esc(statusLabel(x.status))}</small>${x.status==='pending_payment'&&x.payment_method==='pix'?`<div class="order-payment-actions"><button class="order-payment-action" data-reopen-pix="${x.order_number}">Pagar com Pix</button><button class="order-payment-action cancel" data-cancel-pix="${x.order_number}">Cancelar pedido</button></div>`:''}</span></div>`).join(''):'<div class="empty-state"><b>Nenhum pedido ainda</b><p>Suas compras aparecerão aqui.</p></div>';
 $$('[data-reopen-pix]').forEach(button=>button.onclick=()=>reopenPix(button.dataset.reopenPix,session,button));
+$$('[data-cancel-pix]').forEach(button=>button.onclick=()=>cancelPix(button.dataset.cancelPix,session,button));
 $('#wallet-history').innerHTML=(t||[]).length?(t||[]).map(x=>`<div class="transaction-row"><div><b>${esc(txLabel(x.transaction_type))}</b><small>${new Date(x.created_at).toLocaleString('pt-BR')}</small></div><strong class="${Number(x.amount)>=0?'positive':'negative'}">${Number(x.amount)>=0?'+':''}${coins(x.amount)} MV</strong></div>`).join(''):'<div class="empty-state"><b>Sem movimentações</b><p>Compras e ajustes da carteira aparecerão aqui.</p></div>';
 }catch(error){console.error('Falha ao carregar o perfil:',error);$('#profile-loading').innerHTML='<b>Não foi possível recuperar sua sessão.</b><br><button id="profile-retry-login" class="discord-btn" style="margin-top:18px">Entrar com Discord</button>';$('#profile-retry-login').onclick=signIn;}}
 // O callback de autenticação é executado dentro do bloqueio interno do
