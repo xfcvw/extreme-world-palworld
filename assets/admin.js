@@ -733,7 +733,7 @@ async function render() {
             .filter(Boolean);
           const canSetRole =
             profile.role === "owner" && player.user_id !== profile.user_id;
-          return `<article class="buyer-admin-card"><div class="buyer-admin-head"><div><b>${esc(player.display_name || player.discord_username || "Jogador")}</b><small>${esc(player.discord_username ? `@${player.discord_username.replace(/^@/, "")}` : player.palworld_nickname || "Discord não informado")}</small></div><span class="admin-status">${coins(wallet?.balance || 0)} MV</span></div><p><b>Compras:</b> ${purchases.length ? esc(purchases.join(" · ")) : "Nenhuma compra registrada"}</p><small>${playerOrders.length} pedido(s) no portal · Cargo: ${esc(roleLabel(player.role))}</small>${canSetRole ? `<form class="role-adjust-form" data-role-form="${esc(player.user_id)}"><select name="role"><option value="player" ${player.role === "player" ? "selected" : ""}>Cliente / Jogador</option><option value="support" ${player.role === "support" ? "selected" : ""}>Suporte</option><option value="admin" ${player.role === "admin" ? "selected" : ""}>Admin</option><option value="owner" ${player.role === "owner" ? "selected" : ""}>Owner</option></select><button class="secondary-btn admin-action-btn">Salvar cargo</button></form>` : ""}${canManage && wallet ? `<form class="wallet-adjust-form" data-wallet-form="${esc(player.user_id)}"><select name="direction"><option value="credit">Adicionar MV</option><option value="debit">Retirar MV</option></select><input name="amount" inputmode="numeric" min="1" placeholder="Quantidade" required><input name="reason" maxlength="220" placeholder="Motivo do ajuste" required><button class="secondary-btn admin-action-btn">Aplicar ajuste</button></form>` : ""}</article>`;
+          return `<article class="buyer-admin-card"><div class="buyer-admin-head"><div><b>${esc(player.display_name || player.discord_username || "Jogador")}</b><small>${esc(player.discord_username ? `@${player.discord_username.replace(/^@/, "")}` : player.palworld_nickname || "Discord não informado")}</small></div><span class="admin-status">${coins(wallet?.balance || 0)} MV</span></div><div class="buyer-account-id" title="ID da conta usado para cupom exclusivo"><span>${esc(player.user_id)}</span><button type="button" class="secondary-btn" data-copy-account-id="${esc(player.user_id)}">Copiar ID</button></div><p><b>Compras:</b> ${purchases.length ? esc(purchases.join(" · ")) : "Nenhuma compra registrada"}</p><small>${playerOrders.length} pedido(s) no portal · Cargo: ${esc(roleLabel(player.role))}</small>${canSetRole ? `<form class="role-adjust-form" data-role-form="${esc(player.user_id)}"><select name="role"><option value="player" ${player.role === "player" ? "selected" : ""}>Cliente / Jogador</option><option value="support" ${player.role === "support" ? "selected" : ""}>Suporte</option><option value="admin" ${player.role === "admin" ? "selected" : ""}>Admin</option><option value="owner" ${player.role === "owner" ? "selected" : ""}>Owner</option></select><button class="secondary-btn admin-action-btn">Salvar cargo</button></form>` : ""}${canManage && wallet ? `<form class="wallet-adjust-form" data-wallet-form="${esc(player.user_id)}"><select name="direction"><option value="credit">Adicionar MV</option><option value="debit">Retirar MV</option></select><input name="amount" inputmode="numeric" min="1" placeholder="Quantidade" required><input name="reason" maxlength="220" placeholder="Motivo do ajuste" required><button class="secondary-btn admin-action-btn">Aplicar ajuste</button></form>` : ""}</article>`;
         })
         .join("") ||
       '<div class="admin-empty">Nenhum jogador cadastrado ainda.</div>'
@@ -760,6 +760,17 @@ async function render() {
           setDelivery(btn.dataset.delivery, btn.dataset.status)),
     );
   enhanceBuyerPagination();
+  document.querySelectorAll("[data-copy-account-id]").forEach((button) => {
+    button.onclick = async () => {
+      const accountId = button.dataset.copyAccountId;
+      try {
+        await navigator.clipboard.writeText(accountId);
+        toast("ID da conta copiado.");
+      } catch {
+        window.prompt("Copie o ID da conta:", accountId);
+      }
+    };
+  });
   document.querySelectorAll("[data-store-form]").forEach(
     (form) =>
       (form.onsubmit = (event) => {
