@@ -96,7 +96,7 @@ export default async function handler(req,res){
     const normalizedCoupon=String(couponCode||'').trim().toUpperCase();
     let coupon=null;
     if(normalizedCoupon){
-      const coupons=await sb(`coupons?code=eq.${encodeURIComponent(normalizedCoupon)}&active=eq.true&discount_type=eq.percentage&select=code,discount_value`);
+      const coupons=await sb(`coupons?code=eq.${encodeURIComponent(normalizedCoupon)}&active=eq.true&discount_type=eq.percent&select=code,discount_value`);
       coupon=coupons?.[0]||null;
       if(!coupon) return json(res,400,{error:'Cupom inválido ou desativado.'});
     }
