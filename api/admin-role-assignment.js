@@ -5,6 +5,12 @@ const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const reply = (res, status, body) => res.status(status).json(body);
 const clean = (value, length) => String(value ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, length);
 const isUuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+const couponLimit = value => {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  const limit = Number(value);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000000) throw new Error('Informe um limite total entre 1 e 1.000.000 usos.');
+  return limit;
+};
 
 async function serviceFetch(path, options = {}) {
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -34,20 +40,50 @@ export default async function handler(req, res) {
 
     if (couponMode) {
       if (!['owner', 'admin'].includes(profile?.role)) return reply(res, 403, { error: 'Apenas Owner ou Admin pode gerenciar cupons.' });
-      if (req.method === 'GET') return reply(res, 200, { coupons: await serviceFetch('coupons?select=id,code,discount_type,discount_value,active,created_at&discount_type=eq.percent&order=created_at.desc') });
+      if (req.method === 'GET') {
+        const [coupons, redemptions] = await Promise.all([
+          serviceFetch('coupons?select=id,code,discount_type,discount_value,active,max_uses,target_user_id,created_at&discount_type=eq.percent&order=created_at.desc'),
+          serviceFetch('coupon_redemptions?select=coupon_id,status')
+        ]);
+        const usage = new Map();
+        redemptions.forEach(row => {
+          const current = usage.get(row.coupon_id) || { redeemed: 0, reserved: 0 };
+          if (row.status === 'redeemed') current.redeemed += 1;
+          if (row.status === 'reserved') current.reserved += 1;
+          usage.set(row.coupon_id, current);
+        });
+        return reply(res, 200, { coupons: coupons.map(coupon => ({ ...coupon, usage: usage.get(coupon.id) || { redeemed: 0, reserved: 0 } })) });
+      }
 
       if (req.method === 'POST') {
         const code = clean(req.body?.code, 32).toUpperCase();
         const discountPercent = Number(req.body?.discountPercent);
+        const maxUses = couponLimit(req.body?.maxUses);
+        const targetUserId = clean(req.body?.targetUserId, 80) || null;
         if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return reply(res, 400, { error: 'Use de 3 a 32 letras, números, hífen ou sublinhado no cupom.' });
         if (!Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 90) return reply(res, 400, { error: 'Informe uma porcentagem entre 1% e 90%.' });
-        const rows = await serviceFetch('coupons', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ code, discount_type: 'percent', discount_value: discountPercent }) });
+        if (targetUserId && !isUuid(targetUserId)) return reply(res, 400, { error: 'Use o ID da conta do jogador para criar um cupom exclusivo.' });
+        const rows = await serviceFetch('coupons', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ code, discount_type: 'percent', discount_value: discountPercent, max_uses: maxUses, max_uses_per_user: 1, target_user_id: targetUserId }) });
         return reply(res, 201, { coupon: rows?.[0] });
       }
 
       const id = clean(req.body?.id, 80);
       if (!isUuid(id)) return reply(res, 400, { error: 'Cupom inválido.' });
-      const rows = await serviceFetch(`coupons?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ active: Boolean(req.body?.active) }) });
+      const update = {};
+      if (typeof req.body?.active === 'boolean') update.active = req.body.active;
+      if (req.body?.discountPercent !== undefined) {
+        const discountPercent = Number(req.body.discountPercent);
+        if (!Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 90) return reply(res, 400, { error: 'Informe uma porcentagem entre 1% e 90%.' });
+        update.discount_value = discountPercent;
+      }
+      if (req.body?.maxUses !== undefined) update.max_uses = couponLimit(req.body.maxUses);
+      if (req.body?.targetUserId !== undefined) {
+        const targetUserId = clean(req.body.targetUserId, 80) || null;
+        if (targetUserId && !isUuid(targetUserId)) return reply(res, 400, { error: 'Use o ID da conta do jogador para criar um cupom exclusivo.' });
+        update.target_user_id = targetUserId;
+      }
+      if (!Object.keys(update).length) return reply(res, 400, { error: 'Nenhuma alteração foi informada.' });
+      const rows = await serviceFetch(`coupons?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) });
       return reply(res, 200, { coupon: rows?.[0] });
     }
 
@@ -70,6 +106,7 @@ export default async function handler(req, res) {
     if (message.includes('last owner')) return reply(res, 400, { error: 'Não é possível rebaixar o último Owner do portal.' });
     if (message.includes('profile not found')) return reply(res, 404, { error: 'Perfil do jogador não encontrado.' });
     if (message.includes('owner required')) return reply(res, 403, { error: 'Somente Owner pode alterar cargos.' });
+    if (message.includes('limite total')) return reply(res, 400, { error: message });
     return reply(res, 500, { error: 'Não foi possível alterar o cargo agora.' });
   }
 }

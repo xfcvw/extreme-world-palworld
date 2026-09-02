@@ -88,6 +88,9 @@ export default async function handler(req,res){
       p_raw_status:String(order.status_detail||order.status||''),
       p_metadata:order
     });
+    if(['approved','rejected','cancelled','refunded'].includes(processedStatus)){
+      await rpc('finalize_coupon_redemption',{p_order_id:internalOrderId,p_approved:processedStatus==='approved'});
+    }
     console.info('[mercado-pago-webhook] pedido processado', {
       orderId: internalOrderId,
       providerOrderId: String(order.id),
