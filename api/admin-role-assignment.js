@@ -34,14 +34,14 @@ export default async function handler(req, res) {
 
     if (couponMode) {
       if (!['owner', 'admin'].includes(profile?.role)) return reply(res, 403, { error: 'Apenas Owner ou Admin pode gerenciar cupons.' });
-      if (req.method === 'GET') return reply(res, 200, { coupons: await serviceFetch('coupons?select=*&order=created_at.desc') });
+      if (req.method === 'GET') return reply(res, 200, { coupons: await serviceFetch('coupons?select=id,code,discount_type,discount_value,active,created_at&discount_type=eq.percentage&order=created_at.desc') });
 
       if (req.method === 'POST') {
         const code = clean(req.body?.code, 32).toUpperCase();
         const discountPercent = Number(req.body?.discountPercent);
         if (!/^[A-Z0-9_-]{3,32}$/.test(code)) return reply(res, 400, { error: 'Use de 3 a 32 letras, números, hífen ou sublinhado no cupom.' });
         if (!Number.isInteger(discountPercent) || discountPercent < 1 || discountPercent > 90) return reply(res, 400, { error: 'Informe uma porcentagem entre 1% e 90%.' });
-        const rows = await serviceFetch('coupons', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ code, discount_percent: discountPercent, created_by: user.id }) });
+        const rows = await serviceFetch('coupons', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ code, discount_type: 'percentage', discount_value: discountPercent }) });
         return reply(res, 201, { coupon: rows?.[0] });
       }
 

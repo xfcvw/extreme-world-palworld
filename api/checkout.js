@@ -96,11 +96,11 @@ export default async function handler(req,res){
     const normalizedCoupon=String(couponCode||'').trim().toUpperCase();
     let coupon=null;
     if(normalizedCoupon){
-      const coupons=await sb(`coupons?code=eq.${encodeURIComponent(normalizedCoupon)}&active=eq.true&select=code,discount_percent`);
+      const coupons=await sb(`coupons?code=eq.${encodeURIComponent(normalizedCoupon)}&active=eq.true&discount_type=eq.percentage&select=code,discount_value`);
       coupon=coupons?.[0]||null;
       if(!coupon) return json(res,400,{error:'Cupom inválido ou desativado.'});
     }
-    const discountCents=coupon?Math.round(subtotalCents*Number(coupon.discount_percent)/100):0;
+    const discountCents=coupon?Math.round(subtotalCents*Number(coupon.discount_value)/100):0;
     const totalCents=Math.max(1,subtotalCents-discountCents);
     const itemName=isCurrency?`${itemQuantity} Moedas da Vitória`:product.name;
 
@@ -134,7 +134,7 @@ export default async function handler(req,res){
       name_snapshot:itemName,
       quantity:itemQuantity,
       unit_price_cents:isCurrency?MV_UNIT_PRICE_CENTS:product.price_cents,
-      metadata:{...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{}),...(coupon?{coupon_code:coupon.code,discount_percent:Number(coupon.discount_percent)}:{})}
+      metadata:{...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{}),...(coupon?{coupon_code:coupon.code,discount_percent:Number(coupon.discount_value)}:{})}
     })});
 
     const paymentRow=(await sb('payments',{method:'POST',body:JSON.stringify({
@@ -144,7 +144,7 @@ export default async function handler(req,res){
       status:'pending',
       payment_method:paymentMethod,
       amount_cents:totalCents,
-      metadata:{integration:'checkout_transparente_orders',subtotal_cents:subtotalCents,discount_cents:discountCents,...(coupon?{coupon_code:coupon.code,discount_percent:Number(coupon.discount_percent)}:{}),...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{})}
+      metadata:{integration:'checkout_transparente_orders',subtotal_cents:subtotalCents,discount_cents:discountCents,...(coupon?{coupon_code:coupon.code,discount_percent:Number(coupon.discount_value)}:{}),...(isCurrency?{currency_quantity:itemQuantity,unit_price_cents:MV_UNIT_PRICE_CENTS}:{})}
     })}))?.[0];
 
     const amount=(totalCents/100).toFixed(2);
@@ -218,7 +218,7 @@ export default async function handler(req,res){
       rawStatus:mp.status||mpPayment.status||'',
       statusDetail:mp.status_detail||mpPayment.status_detail||'',
       paymentMethod,
-      coupon:coupon?{code:coupon.code,discountPercent:Number(coupon.discount_percent),discountCents}:null,
+      coupon:coupon?{code:coupon.code,discountPercent:Number(coupon.discount_value),discountCents}:null,
       pix:paymentMethod==='pix'?{
         ticketUrl:pm.ticket_url||null,
         qrCode:pm.qr_code||null,
