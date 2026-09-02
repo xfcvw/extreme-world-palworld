@@ -46,22 +46,21 @@
       <span><b>EXTREME</b> WORLD<small>PALWORLD PORTAL</small></span>
     </a>
     <nav class="portal-nav">
-      <a href="#inicio" data-i18n="home">Home</a>
-      <a href="#marketplace" data-i18n="marketplace">MarketPlace</a>
-      <a href="#servidores" data-i18n="servers">Servidores</a>
-      <a href="#pacotes" data-i18n="packages">Pacotes</a>
+      <a href="#inicio">Home</a>
+      <a href="#marketplace">MarketPlace</a>
+      <a href="#servidores">Servidores</a>
+      <a href="#pacotes">Pacotes</a>
       <a href="#vips">VIPs</a>
-      <a href="#loja" data-i18n="shop">Loja</a>
-      <a href="#mapa" data-i18n="map">Mapa</a>
+      <a href="#loja">Loja</a>
+      <a href="#mapa">Mapa</a>
       <a href="/tickets.html">Tickets</a>
       <a id="admin-nav-link" href="/admin.html" hidden>Admin</a>
-      <a href="/perfil.html" data-i18n="player">Jogador</a>
+      <a href="/perfil.html">Jogador</a>
     </nav>
     <div class="account-actions">
-      <label class="locale-control"><span class="sr-only" data-i18n="currencyLabel">Idioma e moeda de exibição</span><select id="locale-selector" aria-label="Idioma e moeda de exibição"></select></label>
       <button id="wallet-pill" class="wallet-pill" hidden>🪙 <span id="wallet-balance">0</span></button>
-      <a id="login-btn" class="discord-btn direct-login" data-i18n="login" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Entrar com Discord</a>
-      <button id="account-btn" class="ghost-btn" data-i18n="account" hidden>Minha conta</button>
+      <a id="login-btn" class="discord-btn direct-login" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Entrar com Discord</a>
+      <button id="account-btn" class="ghost-btn" hidden>Minha conta</button>
     </div>
   </header>
 
@@ -72,12 +71,12 @@
           <img class="portal-hero-image" src="/assets/hero.webp" alt="Extreme World Palworld" loading="eager">
           <div class="portal-hero-shade"></div>
           <div class="portal-hero-copy">
-            <span class="eyebrow cyan" data-i18n="heroTag">SERVIDORES, LOJA E COMUNIDADE</span>
+            <span class="eyebrow cyan">SERVIDORES, LOJA E COMUNIDADE</span>
             <h1>Extreme World<br><em>Palworld Portal</em></h1>
-            <p data-i18n="heroText">Seu ponto central para assinar VIPs, gerenciar Moedas da Vitória, acompanhar pedidos e acessar sua conta do servidor.</p>
+            <p>Seu ponto central para assinar VIPs, gerenciar Moedas da Vitória, acompanhar pedidos e acessar sua conta do servidor.</p>
             <div class="hero-actions">
-              <a class="primary-btn" href="#loja" data-i18n="heroShop">Abrir MarketPlace</a>
-              <a class="secondary-btn direct-login" data-i18n="heroDiscord" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Conectar Discord</a>
+              <a class="primary-btn" href="#loja">Abrir MarketPlace</a>
+              <a class="secondary-btn direct-login" href="https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/authorize?provider=discord&redirect_to=https%3A%2F%2Fextreme-world-palworld.vercel.app">Conectar Discord</a>
             </div>
           </div>
         </article>
@@ -124,25 +123,25 @@
 
     <section id="marketplace" class="marketplace-shell shell">
       <div class="marketplace-banner">
-        <div><span class="eyebrow cyan" data-i18n="marketTag">MARKETPLACE EXTREME WORLD</span><h2 data-i18n="marketTitle">Escolha como evoluir</h2><p data-i18n="marketText">Planos VIP, banco de moedas e catálogo de Pals em uma experiência única.</p></div>
+        <div><span class="eyebrow cyan">MARKETPLACE EXTREME WORLD</span><h2>Escolha como evoluir</h2><p>Planos VIP, banco de moedas e catálogo de Pals em uma experiência única.</p></div>
         <div class="marketplace-tabs"><a href="#loja">Loja</a><a href="#pacotes">Pacotes</a><a href="#vips">VIPs</a><a href="#moedas">Moedas</a><a href="#pals">Pals por moedas</a></div>
       </div>
     </section>
 
     <section id="loja" class="section shell portal-store-section game-store-section">
       <div class="section-head portal-section-head">
-        <div><span class="eyebrow cyan" data-i18n="shopTag">LOJA DO SERVIDOR</span><h2 data-i18n="shopTitle">Itens prontos para entrega</h2></div>
-        <p data-i18n="shopText">Todos os Pals, armas e armaduras, além de recursos e esferas difíceis de conseguir. As compras usam somente Moedas da Vitória e entram na fila de entrega do servidor escolhido.</p>
+        <div><span class="eyebrow cyan">LOJA DO SERVIDOR</span><h2>Itens prontos para entrega</h2></div>
+        <p>Todos os Pals, armas e armaduras, além de recursos e esferas difíceis de conseguir. As compras usam somente Moedas da Vitória e entram na fila de entrega do servidor escolhido.</p>
       </div>
       <div class="shop-toolbar">
         <div id="shop-filters" class="shop-filters" aria-label="Categorias da loja">
-          <button class="active" data-shop-category="all" data-i18n="shopAll">✦ Todos</button>
+          <button class="active" data-shop-category="all">✦ Todos</button>
           <button data-shop-category="pals">🐾 Pals</button>
           <button data-shop-category="weapons">⚔ Armas</button>
           <button data-shop-category="armor">🛡 Armaduras</button>
           <button data-shop-category="resources">⛏ Recursos</button>
         </div>
-        <label class="shop-search-field"><span>⌕</span><input id="shop-search" data-i18n-placeholder="shopSearch" placeholder="Buscar Pal, arma, armadura ou recurso..." autocomplete="off"></label>
+        <label class="shop-search-field"><span>⌕</span><input id="shop-search" placeholder="Buscar Pal, arma, armadura ou recurso..." autocomplete="off"></label>
       </div>
       <p id="shop-count" class="shop-count">Carregando catálogo completo...</p>
       <div id="shop-grid" class="shop-grid"><div class="loading-card">Carregando catálogo da loja...</div></div>
@@ -150,7 +149,6 @@
       <p class="catalog-credit">Ícones e referências de itens: <a href="https://palworld.gg/pt-BR" target="_blank" rel="noopener">Palworld.gg ↗</a></p>
     </section>
 
-    <section class="currency-display-bar"><div class="shell"><b data-i18n="currencyNotice">Os preços são apenas uma conversão estimada. O pagamento final é sempre em R$ (BRL).</b><small data-i18n="rateStatus">Cotação atualizada automaticamente.</small></div></section>
 
     <section id="pacotes" class="section shell portal-store-section">
       <div class="section-head portal-section-head"><div><span class="eyebrow cyan">PACOTES CLÁSSICOS</span><h2>Pacotes únicos Extreme World</h2></div><p>Bronze, Prata, Ouro e Diamante: os pacotes antigos do servidor, separados dos novos VIPs.</p></div>

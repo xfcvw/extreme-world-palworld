@@ -1,10 +1,9 @@
 import { SITE_ORIGIN, getSharedSession, supabase, syncDiscordRole } from '/assets/auth.js';
-import { displayPrice, isForeignLocale, paymentNoticeHtml } from '/assets/i18n.js';
 
 let session = null, profile = null, wallet = null, orders = [], pals = [], products = [], shopProducts = [], selectedClass = 'ALL', selectedShopCategory = 'all', shopQuery = '', shopPage = 1, palPage = 1, coinQuantity = 10;
 let mpConfig = null, mp = null, cardFormInstance = null;
 const $ = (s) => document.querySelector(s); const $$ = (s) => [...document.querySelectorAll(s)];
-const brl = (c) => displayPrice(c);
+const brl = (c) => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((c||0)/100);
 const coins = (n) => new Intl.NumberFormat('pt-BR').format(Number(n||0));
 const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -84,7 +83,7 @@ function renderVips(vips, benefits, productRows){
     const checkoutReady=product&&Number(product.price_cents)===plan.priceCents;
     return `<article class="vip-card vip-official ${plan.featured?'featured':''}" style="--accent:${plan.accent}"><div class="vip-card-top"><span class="vip-tier">${plan.icon} VIP ${plan.tier}</span>${plan.featured?'<span class="vip-popular">MAIS COMPLETO</span>':''}</div><h3>${esc(plan.name)}</h3><div class="price"><b>${brl(plan.priceCents)}</b> <span>/ mês</span></div><ul class="benefits vip-item-list">${plan.items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>${checkoutReady?`<button class="card-cta" data-buy="${product.id}" data-name="${esc(plan.name)}">Assinar VIP</button>`:'<button class="card-cta card-cta-muted" data-vip-unavailable="${esc(plan.name)}">Em configuração</button>'}</article>`;
   }).join('');
-  $('#vip-extra').innerHTML=`<div class="vip-benefit-panel vip-renewal"><div><span class="eyebrow blue">BENEFÍCIO DE RENOVAÇÃO</span><h3>Avançado e Extreme renovam suas escolhas.</h3><p>A cada renovação, o membro pode escolher novamente os Pals e itens de transferência, sempre respeitando os limites do plano.</p></div><div class="vip-rule-note"><b>Regras oficiais</b><p>Todos os benefícios, transferências, descontos e recompensas estão sujeitos às regras oficiais do servidor.</p></div></div><div class="vip-price-summary"><span>VIP Inicial <b>${brl(1500)}</b></span><span>VIP Avançado <b>${brl(3500)}</b></span><span>VIP Extreme <b>${brl(6500)}</b></span></div>`;
+  $('#vip-extra').innerHTML=`<div class="vip-benefit-panel vip-renewal"><div><span class="eyebrow blue">BENEFÍCIO DE RENOVAÇÃO</span><h3>Avançado e Extreme renovam suas escolhas.</h3><p>A cada renovação, o membro pode escolher novamente os Pals e itens de transferência, sempre respeitando os limites do plano.</p></div><div class="vip-rule-note"><b>Regras oficiais</b><p>Todos os benefícios, transferências, descontos e recompensas estão sujeitos às regras oficiais do servidor.</p></div></div><div class="vip-price-summary"><span>VIP Inicial <b>R$ 15</b></span><span>VIP Avançado <b>R$ 35</b></span><span>VIP Extreme <b>R$ 65</b></span></div>`;
   $$('[data-buy]').forEach(b=>b.onclick=()=>checkout(b.dataset.buy,b.dataset.name));
   $$('[data-vip-unavailable]').forEach(b=>b.onclick=()=>toast(`${b.dataset.vipUnavailable} está sendo sincronizado com o checkout seguro.`));
 }
@@ -95,7 +94,7 @@ function renderCoins(items){
   if(!product){$('#coins-grid').innerHTML='<div class="loading-card dark">A compra de Moedas da Vitória está sendo configurada.</div>';return}
   coinQuantity=Math.max(1,Math.min(10000,Math.floor(Number(coinQuantity)||1)));
   const total=mvPrice(coinQuantity);
-  $('#coins-grid').innerHTML=`<article class="coin-card unit-coin-card"><div class="coin-icon">🪙</div><span class="eyebrow cyan">COMPRE A QUANTIDADE QUE QUISER</span><h3>${coins(coinQuantity)} Moedas da Vitória</h3><p>${brl(50)} por moeda. O total é calculado antes do pagamento e as moedas entram na carteira após a aprovação.</p><div class="coin-stepper" aria-label="Quantidade de Moedas da Vitória"><button type="button" data-coin-change="-1" aria-label="Diminuir quantidade">−</button><output>${coins(coinQuantity)} MV</output><button type="button" data-coin-change="1" aria-label="Aumentar quantidade">+</button></div><footer><div><small>Valor total</small><strong>${brl(total)}</strong></div><button class="buy-btn" data-coin="${product.id}">Pix / Cartão</button></footer></article>`;
+  $('#coins-grid').innerHTML=`<article class="coin-card unit-coin-card"><div class="coin-icon">🪙</div><span class="eyebrow cyan">COMPRE A QUANTIDADE QUE QUISER</span><h3>${coins(coinQuantity)} Moedas da Vitória</h3><p>R$ 0,50 por moeda. O total é calculado antes do pagamento e as moedas entram na carteira após a aprovação.</p><div class="coin-stepper" aria-label="Quantidade de Moedas da Vitória"><button type="button" data-coin-change="-1" aria-label="Diminuir quantidade">−</button><output>${coins(coinQuantity)} MV</output><button type="button" data-coin-change="1" aria-label="Aumentar quantidade">+</button></div><footer><div><small>Valor total</small><strong>${brl(total)}</strong></div><button class="buy-btn" data-coin="${product.id}">Pix / Cartão</button></footer></article>`;
   $$('[data-coin-change]').forEach(button=>button.onclick=()=>{coinQuantity=Math.max(1,Math.min(10000,coinQuantity+Number(button.dataset.coinChange)));renderCoins(items)});
   $$('[data-coin]').forEach(button=>button.onclick=()=>checkout(button.dataset.coin,`${coins(coinQuantity)} Moedas da Vitória`,coinQuantity));
 }
@@ -272,9 +271,9 @@ async function initCardForm(product,currencyQuantity=0,totalCents=currencyQuanti
   });
 }
 function checkoutSummaryHtml(originalCents,quote){
-  if(!quote.coupon)return `<div class="checkout-price"><span>Total</span><b>${brl(originalCents)}</b>${paymentNoticeHtml()}</div>`;
+  if(!quote.coupon)return `<div class="checkout-price"><span>Total</span><b>${brl(originalCents)}</b></div>`;
   const label=quote.coupon.discountType==='fixed'?brl(quote.discountCents):`${quote.coupon.discountValue}%`;
-  return `<div class="checkout-price has-discount"><span>Preço original <s>${brl(originalCents)}</s></span><strong>− ${label} de desconto</strong><b>Você paga ${brl(quote.totalCents)}</b>${paymentNoticeHtml()}</div>`;
+  return `<div class="checkout-price has-discount"><span>Preço original <s>${brl(originalCents)}</s></span><strong>− ${label} de desconto</strong><b>Você paga ${brl(quote.totalCents)}</b></div>`;
 }
 async function checkout(productId,name,currencyQuantity=0){
   if(!session){requireDiscordForPurchase();return}
@@ -345,8 +344,4 @@ function applyAuthState(nextSession){
 }
 supabase.auth.onAuthStateChange((_event,nextSession)=>setTimeout(()=>applyAuthState(nextSession),0));
 
-window.addEventListener('ew:currency-rates-ready',()=>{
-  if(!isForeignLocale()||!products.length)return;
-  loadCatalog().catch(error=>console.info('Não foi possível atualizar os preços convertidos:',error));
-});
 (async()=>{session=await getSharedSession();await Promise.all([loadCatalog(),loadGameServerStatus()]);if(session)await loadAccount();else renderAuth();setInterval(loadGameServerStatus,45000);})();
