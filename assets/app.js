@@ -28,17 +28,20 @@ async function signIn(){
 }
 $$('.direct-login').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();signIn()}));
 
+function requireDiscordForPurchase(){
+  modal(`<span class="eyebrow blue">COMPRA PROTEGIDA</span><h2>Entre com o Discord</h2><p>Você pode navegar por toda a loja sem uma conta. Para comprar, entre com o Discord e vincule seu personagem.</p><button id="discord-purchase-login" class="full-btn">Entrar com Discord para comprar</button>`);
+  $('#discord-purchase-login').onclick=signIn;
+}
 
 async function loadCatalog(){
-  const [{data:vips},{data:benefits},{data:productRows},gameCatalog] = await Promise.all([
-    supabase.from('vip_plans').select('*').eq('active',true).order('sort_order'),
-    supabase.from('vip_benefits').select('*').order('sort_order'),
-    supabase.from('products').select('*').eq('active',true).order('price_cents'),
+  const [publicCatalog,gameCatalog] = await Promise.all([
+    fetch('/api/public-catalog',{cache:'no-store'}).then(async response=>response.ok?response.json():Promise.reject(new Error('public catalog unavailable'))).catch(error=>{console.error('Falha ao carregar catálogo público:',error);return null}),
     fetch('/api/game-catalog',{cache:'no-store'}).then(async response=>response.ok?response.json():Promise.reject(new Error('catalog unavailable'))).catch(()=>null)
   ]);
-  products=productRows||[];
+  const vips=publicCatalog?.vips||[],benefits=publicCatalog?.benefits||[];
+  products=publicCatalog?.products||[];
   shopProducts=gameCatalog?.items||[];
-  renderVips(vips||[],benefits||[],products);
+  renderVips(vips,benefits,products);
   renderPackages(products.filter(product=>product.product_type==='package'&&product.metadata?.package_bundle===true));
   renderCoins(products.filter(p=>p.product_type==='currency'));
   renderShop();
@@ -133,7 +136,7 @@ $('#shop-search').oninput=event=>{shopQuery=event.target.value||'';shopPage=1;re
 
 function openShopPurchase(item){
   if(!item)return toast('Item indisponível.');
-  if(!session){toast('Entre com Discord para comprar com Moedas da Vitória.');signIn();return}
+  if(!session){requireDiscordForPurchase();return}
   if(!profile?.palworld_nickname)return openOnboarding();
   if(shopCategory(item)==='pals')return openCatalogPalPurchase(item);
   const category=shopCategory(item),isEquipment=['weapons','armor'].includes(category),isResource=category==='resources';
@@ -273,7 +276,7 @@ function checkoutSummaryHtml(originalCents,quote){
   return `<div class="checkout-price has-discount"><span>Preço original <s>${brl(originalCents)}</s></span><strong>− ${label} de desconto</strong><b>Você paga ${brl(quote.totalCents)}</b></div>`;
 }
 async function checkout(productId,name,currencyQuantity=0){
-  if(!session){toast('Entre com Discord para comprar.');signIn();return}
+  if(!session){requireDiscordForPurchase();return}
   if(!profile?.palworld_nickname)return openOnboarding();
   const product=products.find(p=>p.id===productId);if(!product)return toast('Produto indisponível.');
   const email=session.user.email||'',originalCents=currencyQuantity?mvPrice(currencyQuantity):product.price_cents;
