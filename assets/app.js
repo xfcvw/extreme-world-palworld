@@ -35,7 +35,7 @@ function requireDiscordForPurchase(){
 
 async function loadCatalog(){
   const [publicCatalog,gameCatalog] = await Promise.all([
-    fetch('/api/public-catalog',{cache:'no-store'}).then(async response=>response.ok?response.json():Promise.reject(new Error('public catalog unavailable'))).catch(error=>{console.error('Falha ao carregar catálogo público:',error);return null}),
+    fetch('/api/game-catalog?public=1',{cache:'no-store'}).then(async response=>response.ok?response.json():Promise.reject(new Error('public catalog unavailable'))).catch(error=>{console.error('Falha ao carregar catálogo público:',error);return null}),
     fetch('/api/game-catalog',{cache:'no-store'}).then(async response=>response.ok?response.json():Promise.reject(new Error('catalog unavailable'))).catch(()=>null)
   ]);
   const vips=publicCatalog?.vips||[],benefits=publicCatalog?.benefits||[];
