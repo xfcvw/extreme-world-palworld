@@ -93,9 +93,14 @@ async function cancelPendingPix(user, orderNumber){
   }
   const providerPaymentId=mpOrder?.transactions?.payments?.[0]?.id;
   if(!providerPaymentId)throw clientError('Não foi possível localizar a transação Pix para cancelar.');
-  const cancelResponse=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(providerPaymentId)}`,{method:'PUT',headers:{Authorization:`Bearer ${MP_TOKEN}`,'Content-Type':'application/json'},body:JSON.stringify({status:'cancelled'})});
+  const cancelResponse=await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(providerPaymentId)}`,{method:'PUT',headers:{Authorization:`Bearer ${MP_TOKEN}`,'Content-Type':'application/json','X-Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({status:'cancelled'})});
   const cancelledPayment=await cancelResponse.json().catch(()=>({}));
-  if(!cancelResponse.ok)throw clientError('Este Pix não pôde ser cancelado; atualize a página para conferir o status.');
+  if(!cancelResponse.ok){
+    console.error('Mercado Pago recusou o cancelamento do Pix.',{status:cancelResponse.status,code:cancelledPayment?.cause?.[0]?.code||cancelledPayment?.error||null,message:cancelledPayment?.message||null});
+    const reason=String(cancelledPayment?.message||'');
+    if(/status|invalid|not valid/i.test(reason))throw clientError('Este Pix já mudou de status e não pode mais ser cancelado. Atualize a página para conferir.');
+    throw clientError('O Mercado Pago não conseguiu cancelar este Pix agora. Tente novamente em alguns instantes.');
+  }
   await sb(`payments?id=eq.${encodeURIComponent(storedPayment.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled',raw_status:String(cancelledPayment.status_detail||cancelledPayment.status||'cancelled'),metadata:{order:mpOrder,cancelled_payment:cancelledPayment}})});
   await sb(`orders?id=eq.${encodeURIComponent(order.id)}`,{method:'PATCH',body:JSON.stringify({status:'cancelled'})});
   await rpc('release_coupon_reservation',{p_order_id:order.id}).catch(()=>{});
