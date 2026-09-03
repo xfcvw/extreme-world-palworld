@@ -100,17 +100,20 @@ async function recoverOAuthCallbackSession(){
   if(!tokens)return null;
 
   // Os tokens do fluxo implícito só existem no fragmento da URL. Copiamos os
-  // valores antes de limpá-lo, evitando que permaneçam na barra ou no histórico.
-  clearOAuthCallbackHash();
+  // valores antes de limpá-lo. Só removemos a URL depois de a sessão ter sido
+  // salva, pois alguns navegadores finalizam o callback mais lentamente.
   const {data,error}=await withTimeout(supabase.auth.setSession(tokens),5000);
   if(error)throw error;
+  clearOAuthCallbackHash();
   return data.session||null;
 }
 
 export async function getSharedSession(){
   try{
-    let {data:{session}}=await withTimeout(supabase.auth.getSession());
-    if(!session)session=await recoverOAuthCallbackSession();
+    // A prioridade é o retorno do Discord. Consultá-lo depois do getSession()
+    // cria uma corrida com a recuperação automática da biblioteca Supabase.
+    let session=await recoverOAuthCallbackSession();
+    if(!session)({data:{session}}=await withTimeout(supabase.auth.getSession()));
     if(!session){
       const fromOpenTab=await requestOpenTabSession();
       if(fromOpenTab){
