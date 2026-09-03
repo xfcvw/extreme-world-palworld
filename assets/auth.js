@@ -100,11 +100,19 @@ export async function getSharedSession(){
 
 export async function syncDiscordRole(session){
   if(!session?.access_token)return null;
-  const response=await fetch('/api/discord-sync',{
-    method:'POST',
-    headers:{Authorization:`Bearer ${session.access_token}`}
-  });
-  const data=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(data.error||'Não foi possível sincronizar os cargos do Discord.');
-  return data;
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),5000);
+  try{
+    const response=await fetch('/api/discord-sync',{
+      method:'POST',
+      headers:{Authorization:`Bearer ${session.access_token}`},
+      signal:controller.signal
+    });
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'Não foi possível sincronizar os cargos do Discord.');
+    return data;
+  }catch(error){
+    if(error?.name==='AbortError')throw new Error('A sincronização de cargos demorou demais.');
+    throw error;
+  }finally{clearTimeout(timeout)}
 }
