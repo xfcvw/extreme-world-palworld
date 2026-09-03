@@ -78,9 +78,39 @@ function withTimeout(promise,ms=3500){
   ]);
 }
 
+// Em alguns navegadores a inicialização automática do Supabase pode terminar
+// depois da página já ter pedido a sessão. Recuperamos o retorno OAuth de modo
+// explícito para não perder o primeiro acesso à Central do Jogador.
+function getOAuthCallbackTokens(){
+  try{
+    const hash=new URLSearchParams(location.hash.startsWith('#')?location.hash.slice(1):'');
+    const access_token=hash.get('access_token');
+    const refresh_token=hash.get('refresh_token');
+    return access_token&&refresh_token?{access_token,refresh_token}:null;
+  }catch{return null}
+}
+
+function clearOAuthCallbackHash(){
+  if(!location.hash)return;
+  history.replaceState(null,document.title,`${location.pathname}${location.search}`);
+}
+
+async function recoverOAuthCallbackSession(){
+  const tokens=getOAuthCallbackTokens();
+  if(!tokens)return null;
+
+  // Os tokens do fluxo implícito só existem no fragmento da URL. Copiamos os
+  // valores antes de limpá-lo, evitando que permaneçam na barra ou no histórico.
+  clearOAuthCallbackHash();
+  const {data,error}=await withTimeout(supabase.auth.setSession(tokens),5000);
+  if(error)throw error;
+  return data.session||null;
+}
+
 export async function getSharedSession(){
   try{
     let {data:{session}}=await withTimeout(supabase.auth.getSession());
+    if(!session)session=await recoverOAuthCallbackSession();
     if(!session){
       const fromOpenTab=await requestOpenTabSession();
       if(fromOpenTab){
