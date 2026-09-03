@@ -1,22 +1,174 @@
 import { SITE_ORIGIN, getSharedSession, supabase } from '/assets/auth.js';
 
-const root=document.querySelector('#ticket-root');
-const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const toast=message=>{const el=document.querySelector('#toast');el.textContent=message;el.hidden=false;setTimeout(()=>el.hidden=true,3200)};
-const labelCategory=category=>category==='purchase'?'Compra':'Suporte';
-const labelStatus=status=>({open:'Aberto',in_progress:'Em atendimento',answered:'Respondido',closed:'Fechado'}[status]||status);
-const date=value=>new Date(value).toLocaleString('pt-BR');
-let session=null,activeTicketId=null,tickets=[];
-const preferredCategory=new URLSearchParams(location.search).get('category')==='purchase'?'purchase':'support';
+const root = document.querySelector('#ticket-root');
+const esc = (value) =>
+  String(value ?? '').replace(
+    /[&<>"']/g,
+    (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]
+  );
+const toast = (message) => {
+  const el = document.querySelector('#toast');
+  el.textContent = message;
+  el.hidden = false;
+  setTimeout(() => (el.hidden = true), 3200);
+};
+const labelCategory = (category) => (category === 'purchase' ? 'Compra' : 'Suporte');
+const labelStatus = (status) =>
+  ({ open: 'Aberto', in_progress: 'Em atendimento', answered: 'Respondido', closed: 'Fechado' })[
+    status
+  ] || status;
+const date = (value) => new Date(value).toLocaleString('pt-BR');
+let session = null,
+  activeTicketId = null,
+  tickets = [],
+  ticketOwners = new Map();
+const preferredCategory =
+  new URLSearchParams(location.search).get('category') === 'purchase' ? 'purchase' : 'support';
 
-async function signIn(){const {error}=await supabase.auth.signInWithOAuth({provider:'discord',options:{redirectTo:`${SITE_ORIGIN}/tickets.html`}});if(error)toast(error.message)}
-async function getMessages(ticketId){const {data,error}=await supabase.from('support_ticket_messages').select('*').eq('ticket_id',ticketId).order('created_at',{ascending:true});if(error)throw error;return data||[]}
-function renderLogin(){root.innerHTML='<section class="ticket-card ticket-login"><span class="eyebrow cyan">ACESSO NECESSÁRIO</span><h2>Entre com o Discord</h2><p>Use a mesma conta do portal para abrir e acompanhar seus tickets.</p><button id="ticket-login" class="primary-btn">Entrar com Discord</button></section>';document.querySelector('#ticket-login').onclick=signIn}
-function ticketList(){return tickets.length?tickets.map(ticket=>`<button class="ticket-row ${ticket.id===activeTicketId?'active':''}" data-ticket-id="${ticket.id}"><span class="ticket-row-icon">${ticket.category==='purchase'?'◈':'✦'}</span><span class="ticket-row-copy"><b>${esc(ticket.subject)}</b><small>${labelCategory(ticket.category)} · ${date(ticket.created_at)}</small></span><span class="ticket-status ${esc(ticket.status)}">${labelStatus(ticket.status)}</span></button>`).join(''):'<div class="ticket-empty"><span>◌</span><b>Nenhum ticket por aqui</b><p>Quando precisar, abra um novo chamado ao lado.</p></div>'}
-function renderShell(){root.innerHTML=`<div class="ticket-workspace"><aside class="ticket-card ticket-compose"><div class="ticket-card-heading"><span class="eyebrow cyan">NOVO CHAMADO</span><h2>Abrir ticket</h2><p>Explique o que precisa. A resposta chegará nesta central.</p></div><form id="ticket-create" class="ticket-form"><label>Categoria<select name="category"><option value="support" ${preferredCategory==='support'?'selected':''}>Suporte</option><option value="purchase" ${preferredCategory==='purchase'?'selected':''}>Compra</option></select></label><label>Assunto<input name="subject" minlength="3" maxlength="120" placeholder="Ex.: Dúvida sobre meu pedido" required></label><label>Descrição<textarea name="description" minlength="1" maxlength="2000" placeholder="Conte para a equipe como podemos ajudar" required></textarea></label><button class="primary-btn">Criar ticket <span>→</span></button></form></aside><section class="ticket-card ticket-inbox"><div class="ticket-card-heading ticket-inbox-head"><div><span class="eyebrow blue">MEUS TICKETS</span><h2>Chamados</h2></div><span class="ticket-counter">${tickets.length}</span></div><div class="ticket-list">${ticketList()}</div></section><section class="ticket-card ticket-conversation"><div id="ticket-thread" class="ticket-thread-empty ticket-thread-placeholder"><span>◌</span><b>Selecione um ticket</b><p>Escolha um chamado para acompanhar a conversa com a equipe.</p></div></section></div>`;document.querySelector('#ticket-create').onsubmit=createTicket;document.querySelectorAll('[data-ticket-id]').forEach(button=>button.onclick=()=>openTicket(button.dataset.ticketId))}
-async function createTicket(event){event.preventDefault();const form=event.currentTarget,button=form.querySelector('button'),formData=new FormData(form);button.disabled=true;button.textContent='Criando...';try{const {data:ticket,error}=await supabase.from('support_tickets').insert({user_id:session.user.id,category:formData.get('category'),subject:String(formData.get('subject')).trim(),description:String(formData.get('description')).trim(),status:'open'}).select().single();if(error)throw error;form.reset();toast('Ticket criado. A equipe verá seu chamado.');await loadTickets(ticket.id)}catch(error){toast(error.message||'Não foi possível criar o ticket.');button.disabled=false;button.textContent='Criar ticket'}}
-async function openTicket(ticketId){activeTicketId=ticketId;renderShell();const thread=document.querySelector('#ticket-thread');thread.innerHTML='<div class="ticket-thread-empty ticket-thread-placeholder"><span>◌</span><b>Carregando conversa...</b></div>';try{const ticket=tickets.find(row=>row.id===ticketId);const messages=await getMessages(ticketId);thread.innerHTML=`<div class="ticket-thread-head"><div><span class="eyebrow cyan">${labelCategory(ticket.category)}</span><h2>${esc(ticket.subject)}</h2><p>${labelStatus(ticket.status)} · aberto em ${date(ticket.created_at)}</p></div><span class="ticket-status ${esc(ticket.status)}">${labelStatus(ticket.status)}</span></div><article class="ticket-description"><b>Mensagem inicial</b><p>${esc(ticket.description)}</p></article><div class="ticket-message-list">${messages.map(message=>`<article class="ticket-message ${message.author_id===session.user.id?'mine':''}"><div class="message-meta"><span>${message.author_id===session.user.id?'Você':'Equipe Extreme'}</span><span>${date(message.created_at)}</span></div><p>${esc(message.body)}</p></article>`).join('')||'<div class="ticket-thread-empty">Aguardando a primeira resposta da equipe.</div>'}</div>${ticket.status==='closed'?'<p class="ticket-thread-empty">Este ticket foi fechado pela equipe.</p>':`<form id="ticket-reply" class="ticket-reply"><textarea name="body" maxlength="2000" placeholder="Escreva uma resposta" required></textarea><button class="primary-btn">Enviar resposta <span>→</span></button></form>`}`;const reply=document.querySelector('#ticket-reply');if(reply)reply.onsubmit=event=>replyTicket(event,ticketId)}catch(error){thread.innerHTML='<div class="ticket-thread-empty ticket-thread-placeholder"><span>!</span><b>Não foi possível abrir a conversa.</b></div>';toast(error.message)}}
-async function replyTicket(event,ticketId){event.preventDefault();const form=event.currentTarget,button=form.querySelector('button'),body=String(new FormData(form).get('body')).trim();if(!body)return;button.disabled=true;button.textContent='Enviando...';const {error}=await supabase.from('support_ticket_messages').insert({ticket_id:ticketId,author_id:session.user.id,body});if(error){toast(error.message);button.disabled=false;button.textContent='Enviar resposta';return}form.reset();toast('Resposta enviada.');await openTicket(ticketId)}
-async function loadTickets(selectedId){const {data,error}=await supabase.from('support_tickets').select('*').order('created_at',{ascending:false});if(error)throw error;tickets=data||[];activeTicketId=selectedId||activeTicketId||tickets[0]?.id||null;renderShell();if(activeTicketId)await openTicket(activeTicketId)}
-async function init(){session=await getSharedSession();if(!session){renderLogin();return}try{await loadTickets()}catch(error){root.innerHTML='<section class="ticket-card ticket-login"><h2>Não foi possível carregar os tickets</h2><p>Atualize a página. Se continuar, avise a equipe.</p></section>';console.error(error)}}
+async function signIn() {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'discord',
+    options: { redirectTo: `${SITE_ORIGIN}/tickets.html` },
+  });
+  if (error) toast(error.message);
+}
+async function getMessages(ticketId) {
+  const { data, error } = await supabase
+    .from('support_ticket_messages')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+function renderLogin() {
+  root.innerHTML =
+    '<section class="ticket-card ticket-login"><span class="eyebrow cyan">ACESSO NECESSÁRIO</span><h2>Entre com o Discord</h2><p>Use a mesma conta do portal para abrir e acompanhar seus tickets.</p><button id="ticket-login" class="primary-btn">Entrar com Discord</button></section>';
+  document.querySelector('#ticket-login').onclick = signIn;
+}
+function ticketOwnerName(ticket) {
+  const owner = ticketOwners.get(ticket.user_id);
+  return owner?.display_name || owner?.discord_username || 'Jogador';
+}
+
+function ticketList() {
+  return tickets.length
+    ? tickets
+        .map(
+          (ticket) =>
+            `<button class="ticket-row ${ticket.id === activeTicketId ? 'active' : ''}" data-ticket-id="${ticket.id}"><span class="ticket-row-icon">${ticket.category === 'purchase' ? '◈' : '✦'}</span><span class="ticket-row-copy"><b>${esc(ticket.subject)}</b><small>${labelCategory(ticket.category)} · ${date(ticket.created_at)}</small></span><span class="ticket-status ${esc(ticket.status)}">${labelStatus(ticket.status)}</span></button>`
+        )
+        .join('')
+    : '<div class="ticket-empty"><span>◌</span><b>Nenhum ticket por aqui</b><p>Quando precisar, abra um novo chamado ao lado.</p></div>';
+}
+function renderShell() {
+  root.innerHTML = `<div class="ticket-workspace"><aside class="ticket-card ticket-compose"><div class="ticket-card-heading"><span class="eyebrow cyan">NOVO CHAMADO</span><h2>Abrir ticket</h2><p>Explique o que precisa. A resposta chegará nesta central.</p></div><form id="ticket-create" class="ticket-form"><label>Categoria<select name="category"><option value="support" ${preferredCategory === 'support' ? 'selected' : ''}>Suporte</option><option value="purchase" ${preferredCategory === 'purchase' ? 'selected' : ''}>Compra</option></select></label><label>Assunto<input name="subject" minlength="3" maxlength="120" placeholder="Ex.: Dúvida sobre meu pedido" required></label><label>Descrição<textarea name="description" minlength="1" maxlength="2000" placeholder="Conte para a equipe como podemos ajudar" required></textarea></label><button class="primary-btn">Criar ticket <span>→</span></button></form></aside><section class="ticket-card ticket-inbox"><div class="ticket-card-heading ticket-inbox-head"><div><span class="eyebrow blue">MEUS TICKETS</span><h2>Chamados</h2></div><span class="ticket-counter">${tickets.length}</span></div><div class="ticket-list">${ticketList()}</div></section><section class="ticket-card ticket-conversation"><div id="ticket-thread" class="ticket-thread-empty ticket-thread-placeholder"><span>◌</span><b>Selecione um ticket</b><p>Escolha um chamado para acompanhar a conversa com a equipe.</p></div></section></div>`;
+  document.querySelector('#ticket-create').onsubmit = createTicket;
+  document
+    .querySelectorAll('[data-ticket-id]')
+    .forEach((button) => (button.onclick = () => openTicket(button.dataset.ticketId)));
+}
+async function createTicket(event) {
+  event.preventDefault();
+  const form = event.currentTarget,
+    button = form.querySelector('button'),
+    formData = new FormData(form);
+  button.disabled = true;
+  button.textContent = 'Criando...';
+  try {
+    const { data: ticket, error } = await supabase
+      .from('support_tickets')
+      .insert({
+        user_id: session.user.id,
+        category: formData.get('category'),
+        subject: String(formData.get('subject')).trim(),
+        description: String(formData.get('description')).trim(),
+        status: 'open',
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    form.reset();
+    toast('Ticket criado. A equipe verá seu chamado.');
+    await loadTickets(ticket.id);
+  } catch (error) {
+    toast(error.message || 'Não foi possível criar o ticket.');
+    button.disabled = false;
+    button.textContent = 'Criar ticket';
+  }
+}
+async function openTicket(ticketId) {
+  activeTicketId = ticketId;
+  renderShell();
+  const thread = document.querySelector('#ticket-thread');
+  thread.innerHTML =
+    '<div class="ticket-thread-empty ticket-thread-placeholder"><span>◌</span><b>Carregando conversa...</b></div>';
+  try {
+    const ticket = tickets.find((row) => row.id === ticketId);
+    const messages = await getMessages(ticketId);
+    thread.innerHTML = `<div class="ticket-thread-head"><div><span class="eyebrow cyan">${labelCategory(ticket.category)}</span><h2>${esc(ticket.subject)}</h2><p>Aberto por ${esc(ticketOwnerName(ticket))} · ${labelStatus(ticket.status)} · ${date(ticket.created_at)}</p></div><span class="ticket-status ${esc(ticket.status)}">${labelStatus(ticket.status)}</span></div><article class="ticket-description"><b>Mensagem inicial</b><p>${esc(ticket.description)}</p></article><div class="ticket-message-list">${messages.map((message) => `<article class="ticket-message ${message.author_id === session.user.id ? 'mine' : ''}"><div class="message-meta"><span>${message.author_id === ticket.user_id ? esc(ticketOwnerName(ticket)) : message.author_id === session.user.id ? 'Você' : 'Equipe Extreme'}</span><span>${date(message.created_at)}</span></div><p>${esc(message.body)}</p></article>`).join('') || '<div class="ticket-thread-empty">Aguardando a primeira resposta da equipe.</div>'}</div>${ticket.status === 'closed' ? '<p class="ticket-thread-empty">Este ticket foi fechado pela equipe.</p>' : `<form id="ticket-reply" class="ticket-reply"><textarea name="body" maxlength="2000" placeholder="Escreva uma resposta" required></textarea><button class="primary-btn">Enviar resposta <span>→</span></button></form>`}`;
+    const reply = document.querySelector('#ticket-reply');
+    if (reply) reply.onsubmit = (event) => replyTicket(event, ticketId);
+  } catch (error) {
+    thread.innerHTML =
+      '<div class="ticket-thread-empty ticket-thread-placeholder"><span>!</span><b>Não foi possível abrir a conversa.</b></div>';
+    toast(error.message);
+  }
+}
+async function replyTicket(event, ticketId) {
+  event.preventDefault();
+  const form = event.currentTarget,
+    button = form.querySelector('button'),
+    body = String(new FormData(form).get('body')).trim();
+  if (!body) return;
+  button.disabled = true;
+  button.textContent = 'Enviando...';
+  const { error } = await supabase
+    .from('support_ticket_messages')
+    .insert({ ticket_id: ticketId, author_id: session.user.id, body });
+  if (error) {
+    toast(error.message);
+    button.disabled = false;
+    button.textContent = 'Enviar resposta';
+    return;
+  }
+  form.reset();
+  toast('Resposta enviada.');
+  await openTicket(ticketId);
+}
+async function loadTickets(selectedId) {
+  const { data, error } = await supabase
+    .from('support_tickets')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  tickets = data || [];
+  const ownerIds = [...new Set(tickets.map((ticket) => ticket.user_id).filter(Boolean))];
+  ticketOwners = new Map();
+  if (ownerIds.length) {
+    const { data: owners, error: ownersError } = await supabase
+      .from('profiles')
+      .select('user_id,display_name,discord_username')
+      .in('user_id', ownerIds);
+    if (ownersError) console.warn('Não foi possível carregar os autores dos tickets:', ownersError);
+    ticketOwners = new Map((owners || []).map((owner) => [owner.user_id, owner]));
+  }
+  activeTicketId = selectedId || activeTicketId || tickets[0]?.id || null;
+  renderShell();
+  if (activeTicketId) await openTicket(activeTicketId);
+}
+async function init() {
+  session = await getSharedSession();
+  if (!session) {
+    renderLogin();
+    return;
+  }
+  try {
+    await loadTickets();
+  } catch (error) {
+    root.innerHTML =
+      '<section class="ticket-card ticket-login"><h2>Não foi possível carregar os tickets</h2><p>Atualize a página. Se continuar, avise a equipe.</p></section>';
+    console.error(error);
+  }
+}
 init();
