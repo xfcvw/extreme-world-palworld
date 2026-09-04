@@ -131,22 +131,43 @@ function getOAuthCallbackTokens() {
   }
 }
 
-function clearOAuthCallbackHash() {
-  if (!location.hash) return;
-  history.replaceState(null, document.title, `${location.pathname}${location.search}`);
+function getOAuthCallbackCode() {
+  try {
+    return new URLSearchParams(location.search).get('code');
+  } catch {
+    return null;
+  }
+}
+
+function clearOAuthCallbackUrl() {
+  if (!location.hash && !getOAuthCallbackCode()) return;
+  const query = new URLSearchParams(location.search);
+  query.delete('code');
+  const search = query.toString();
+  history.replaceState(null, document.title, `${location.pathname}${search ? `?${search}` : ''}`);
 }
 
 async function recoverOAuthCallbackSession() {
   const tokens = getOAuthCallbackTokens();
-  if (!tokens) return null;
+  if (tokens) {
+    // Os tokens do fluxo implícito só existem no fragmento da URL. Copiamos os
+    // valores antes de limpá-lo. Só removemos a URL depois de a sessão ter sido
+    // salva, pois alguns navegadores finalizam o callback mais lentamente.
+    const { data, error } = await withTimeout(supabase.auth.setSession(tokens), 5000);
+    if (!error && data.session) {
+      clearOAuthCallbackUrl();
+      return data.session;
+    }
+  }
 
-  // Os tokens do fluxo implícito só existem no fragmento da URL. Copiamos os
-  // valores antes de limpá-lo. Só removemos a URL depois de a sessão ter sido
-  // salva, pois alguns navegadores finalizam o callback mais lentamente.
-  const { data, error } = await withTimeout(supabase.auth.setSession(tokens), 5000);
-  if (error) throw error;
-  clearOAuthCallbackHash();
-  return data.session || null;
+  // Alguns navegadores concluem o OAuth com um código na URL em vez dos tokens
+  // no fragmento. Aceitamos os dois retornos para não perder o login no celular.
+  const code = getOAuthCallbackCode();
+  if (!code) return null;
+  const { data, error } = await withTimeout(supabase.auth.exchangeCodeForSession(code), 5000);
+  if (error || !data.session) return null;
+  clearOAuthCallbackUrl();
+  return data.session;
 }
 
 export async function getSharedSession() {
@@ -158,6 +179,14 @@ export async function getSharedSession() {
       ({
         data: { session },
       } = await withTimeout(supabase.auth.getSession()));
+    // Dá alguns instantes para o armazenamento do navegador terminar de salvar
+    // o retorno OAuth antes de concluir que a pessoa não está autenticada.
+    if (!session) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      ({
+        data: { session },
+      } = await withTimeout(supabase.auth.getSession()));
+    }
     if (!session) {
       const fromOpenTab = await requestOpenTabSession();
       if (fromOpenTab) {
