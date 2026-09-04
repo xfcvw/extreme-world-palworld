@@ -113,12 +113,33 @@ async function signIn() {
   });
   if (error) toast(error.message);
 }
-$$('.direct-login').forEach((link) =>
+$('.direct-login').forEach((link) =>
   link.addEventListener('click', (event) => {
     event.preventDefault();
     signIn();
   })
 );
+
+const mobileNavToggle = $('#mobile-nav-toggle');
+const siteNavigation = $('#site-navigation');
+if (mobileNavToggle && siteNavigation) {
+  const closeMobileNavigation = () => {
+    siteNavigation.classList.remove('is-open');
+    mobileNavToggle.setAttribute('aria-expanded', 'false');
+    mobileNavToggle.textContent = '☰';
+  };
+  mobileNavToggle.addEventListener('click', () => {
+    const isOpen = siteNavigation.classList.toggle('is-open');
+    mobileNavToggle.setAttribute('aria-expanded', String(isOpen));
+    mobileNavToggle.textContent = isOpen ? '×' : '☰';
+  });
+  siteNavigation
+    .querySelectorAll('a')
+    .forEach((link) => link.addEventListener('click', closeMobileNavigation));
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeMobileNavigation();
+  });
+}
 
 function requireDiscordForPurchase() {
   modal(
