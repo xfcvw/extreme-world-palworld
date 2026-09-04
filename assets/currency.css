@@ -1,8 +1,69 @@
 /* Compra unitária de Moedas da Vitória */
-.unit-coin-card{max-width:520px}
-.unit-coin-card footer small{display:block;color:#83a0bf;font-size:10px;font-weight:800}
-.coin-stepper{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;max-width:270px;margin:20px 0 4px;border:1px solid #2b4b69;border-radius:13px;overflow:hidden;background:#081727}
-.coin-stepper button{height:48px;border:0;background:#123456;color:#fff;font-size:27px;font-weight:800;cursor:pointer}
-.coin-stepper button:hover{background:#1768aa}
-.coin-stepper output{color:#fff;text-align:center;font-size:14px;font-weight:900}
-.pal-request-fields{display:grid;gap:12px;margin:4px 0 2px;padding:15px;border:1px solid #cbd9ea;border-radius:13px;background:#f6faff}.pal-request-fields legend{padding:0 6px;color:#1c5c9d;font-size:11px;font-weight:900}.pal-request-fields textarea{width:100%;min-height:74px;padding:11px 12px;border:1px solid #ced9e9;border-radius:11px;resize:vertical;font:inherit;outline:0}.pal-request-fields small{color:#667b93;font-size:10px;line-height:1.55}
+.unit-coin-card {
+  max-width: 520px;
+}
+.unit-coin-card footer small {
+  display: block;
+  color: #83a0bf;
+  font-size: 10px;
+  font-weight: 800;
+}
+.coin-stepper {
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  max-width: 270px;
+  margin: 20px 0 4px;
+  border: 1px solid #2b4b69;
+  border-radius: 13px;
+  overflow: hidden;
+  background: #081727;
+}
+.coin-stepper button {
+  height: 48px;
+  border: 0;
+  background: #123456;
+  color: #fff;
+  font-size: 27px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.coin-stepper button:hover {
+  background: #1768aa;
+}
+.coin-stepper output {
+  color: #fff;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 900;
+}
+.pal-request-fields {
+  display: grid;
+  gap: 12px;
+  margin: 4px 0 2px;
+  padding: 15px;
+  border: 1px solid #cbd9ea;
+  border-radius: 13px;
+  background: #f6faff;
+}
+.pal-request-fields legend {
+  padding: 0 6px;
+  color: #1c5c9d;
+  font-size: 11px;
+  font-weight: 900;
+}
+.pal-request-fields textarea {
+  width: 100%;
+  min-height: 74px;
+  padding: 11px 12px;
+  border: 1px solid #ced9e9;
+  border-radius: 11px;
+  resize: vertical;
+  font: inherit;
+  outline: 0;
+}
+.pal-request-fields small {
+  color: #667b93;
+  font-size: 10px;
+  line-height: 1.55;
+}

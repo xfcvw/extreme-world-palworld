@@ -1,12 +1,19 @@
 const ALLOWED_HOST = 'palworld.gg';
 
 function allowedSource(url) {
-  return url.protocol === 'https:' && url.hostname === ALLOWED_HOST && url.pathname.includes('/images/items/');
+  return (
+    url.protocol === 'https:' &&
+    url.hostname === ALLOWED_HOST &&
+    url.pathname.includes('/images/items/')
+  );
 }
 
 async function loadImage(url) {
   const upstream = await fetch(url.toString(), {
-    headers: { Accept: 'image/avif,image/webp,image/png,image/*,*/*;q=0.8', Referer: 'https://palworld.gg/' }
+    headers: {
+      Accept: 'image/avif,image/webp,image/png,image/*,*/*;q=0.8',
+      Referer: 'https://palworld.gg/',
+    },
   });
   const type = upstream.headers.get('content-type') || '';
   if (!upstream.ok || !type.startsWith('image/')) return null;
@@ -31,7 +38,10 @@ export default async function handler(req, res) {
     const image = await loadImage(source);
     if (!image) return res.status(404).json({ error: 'Imagem indisponível.' });
     res.setHeader('Content-Type', image.type);
-    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
+    res.setHeader(
+      'Cache-Control',
+      'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400'
+    );
     return res.status(200).send(image.data);
   } catch {
     return res.status(502).json({ error: 'Não foi possível carregar a imagem.' });

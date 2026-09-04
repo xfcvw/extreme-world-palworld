@@ -9,7 +9,9 @@ const json = (res, status, data) => res.status(status).json(data);
 function safeEqual(left, right) {
   const leftBuffer = Buffer.from(String(left || ''), 'utf8');
   const rightBuffer = Buffer.from(String(right || ''), 'utf8');
-  return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+  return (
+    leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer)
+  );
 }
 
 function deliveryAgent(req) {
@@ -26,9 +28,9 @@ async function serviceRpc(functionName, payload) {
     headers: {
       apikey: SERVICE_ROLE,
       Authorization: `Bearer ${SERVICE_ROLE}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
   });
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(data?.message || data?.hint || 'Falha na fila de entregas.');
@@ -37,15 +39,22 @@ async function serviceRpc(functionName, payload) {
 
 export default async function handler(req, res) {
   if (!['GET', 'POST'].includes(req.method)) return json(res, 405, { error: 'Method not allowed' });
-  if (!SUPABASE_URL || !SERVICE_ROLE || !DELIVERY_SECRET) return json(res, 503, { error: 'Entrega automática não configurada.' });
+  if (!SUPABASE_URL || !SERVICE_ROLE || !DELIVERY_SECRET)
+    return json(res, 503, { error: 'Entrega automática não configurada.' });
 
   const agentId = deliveryAgent(req);
   if (!agentId) return json(res, 401, { error: 'Agente de entrega não autorizado.' });
 
   try {
     if (req.method === 'GET') {
-      if (Number(req.query?.server) !== 1) return json(res, 400, { error: 'A entrega automática está disponível apenas no servidor Sem Wipe.' });
-      const jobs = await serviceRpc('claim_next_game_delivery', { p_server_number: 1, p_agent_id: agentId });
+      if (Number(req.query?.server) !== 1)
+        return json(res, 400, {
+          error: 'A entrega automática está disponível apenas no servidor Sem Wipe.',
+        });
+      const jobs = await serviceRpc('claim_next_game_delivery', {
+        p_server_number: 1,
+        p_agent_id: agentId,
+      });
       const job = Array.isArray(jobs) ? jobs[0] : jobs;
       if (!job) return res.status(204).end();
       return json(res, 200, { job });
@@ -58,14 +67,15 @@ export default async function handler(req, res) {
     if (!/^[0-9a-f-]{36}$/i.test(jobId) || !/^[0-9a-f-]{36}$/i.test(claimToken)) {
       return json(res, 400, { error: 'Identificador de entrega inválido.' });
     }
-    if (!['delivered', 'deferred', 'failed'].includes(result)) return json(res, 400, { error: 'Resultado de entrega inválido.' });
+    if (!['delivered', 'deferred', 'failed'].includes(result))
+      return json(res, 400, { error: 'Resultado de entrega inválido.' });
 
     await serviceRpc('complete_game_delivery', {
       p_job_id: jobId,
       p_claim_token: claimToken,
       p_agent_id: agentId,
       p_result: result,
-      p_error: error || null
+      p_error: error || null,
     });
     return json(res, 200, { ok: true });
   } catch (error) {

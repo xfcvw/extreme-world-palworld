@@ -1,7 +1,11 @@
 import { getSharedSession, supabase } from '/assets/auth.js';
 
-const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const shortDate = value => new Date(value).toLocaleDateString('pt-BR');
+const normalize = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+const shortDate = (value) => new Date(value).toLocaleDateString('pt-BR');
 
 async function loadVipMembership() {
   const session = await getSharedSession();
@@ -13,12 +17,15 @@ async function loadVipMembership() {
     .order('expires_at', { ascending: false })
     .limit(1);
   const membership = data?.[0] || null;
-  return membership ? { ...membership, active: new Date(membership.expires_at).getTime() > Date.now() } : null;
+  return membership
+    ? { ...membership, active: new Date(membership.expires_at).getTime() > Date.now() }
+    : null;
 }
 
 function updateVipCards(membership) {
-  document.querySelectorAll('#vip-grid [data-buy]').forEach(button => {
-    const selectedPlan = membership && normalize(button.dataset.name) === normalize(membership.vip_name);
+  document.querySelectorAll('#vip-grid [data-buy]').forEach((button) => {
+    const selectedPlan =
+      membership && normalize(button.dataset.name) === normalize(membership.vip_name);
     let label = 'Assinar VIP';
     let disabled = false;
     if (selectedPlan && membership.active) {
@@ -29,7 +36,10 @@ function updateVipCards(membership) {
     }
     if (button.textContent !== label) button.textContent = label;
     button.disabled = disabled;
-    button.title = selectedPlan && membership.active ? `Seu VIP vence em ${shortDate(membership.expires_at)}.` : '';
+    button.title =
+      selectedPlan && membership.active
+        ? `Seu VIP vence em ${shortDate(membership.expires_at)}.`
+        : '';
   });
 }
 
@@ -62,7 +72,10 @@ async function init() {
   }
   const profile = document.querySelector('#profile-content');
   if (profile) {
-    new MutationObserver(() => updateProfileBadge(membership)).observe(profile, { attributes: true, attributeFilter: ['hidden'] });
+    new MutationObserver(() => updateProfileBadge(membership)).observe(profile, {
+      attributes: true,
+      attributeFilter: ['hidden'],
+    });
     setTimeout(() => updateProfileBadge(membership), 0);
   }
 }
