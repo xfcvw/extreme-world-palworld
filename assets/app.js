@@ -113,7 +113,7 @@ async function signIn() {
   });
   if (error) toast(error.message);
 }
-$('.direct-login').forEach((link) =>
+$$('.direct-login').forEach((link) =>
   link.addEventListener('click', (event) => {
     event.preventDefault();
     signIn();
