@@ -30,6 +30,19 @@ const itemQuantity = (item) => {
   );
 };
 const purchaseLabel = (item) => `${item?.name_snapshot || 'Pedido'} × ${coins(itemQuantity(item))}`;
+const palRequestSummary = (order) => {
+  const prefs = (order?.order_items || [])
+    .map((item) => item?.metadata?.pal_preferences)
+    .find(Boolean);
+  if (!prefs) return '';
+  const gender =
+    { female: 'Fêmea', male: 'Macho', any: 'Sem preferência' }[prefs.desired_gender] ||
+    'Sem preferência';
+  const parts = [`Sexo: ${gender}`];
+  if (prefs.desired_passives) parts.push(`Passivas: ${prefs.desired_passives}`);
+  if (prefs.delivery_notes) parts.push(`Descrição: ${prefs.delivery_notes}`);
+  return parts.join(' · ');
+};
 
 async function replaceRecentActivity(section) {
   if (section.dataset.recentActivityReady) return;
@@ -59,7 +72,7 @@ async function replaceRecentActivity(section) {
         .join(' ');
       return (
         !query ||
-        normalize(`${order.order_number} ${order.palworld_nickname || ''} ${itemNames}`).includes(
+        normalize(`${order.order_number} ${order.palworld_nickname || ''} ${itemNames} ${palRequestSummary(order)}`).includes(
           query
         )
       );
@@ -74,7 +87,8 @@ async function replaceRecentActivity(section) {
         ? visible
             .map((order) => {
               const label = (order.order_items || []).map(purchaseLabel).join(' · ') || 'Pedido';
-              return `<div class="admin-order-row"><b>#EW-${order.order_number}</b><div><b>${esc(label)}</b><small>${esc(order.palworld_nickname || 'NickName não informado')}</small></div><div><small>${new Date(order.created_at).toLocaleString('pt-BR')}</small></div><span class="admin-status">${esc(statusLabel(order.status))}</span></div>`;
+              const palDetails = palRequestSummary(order);
+              return `<div class="admin-order-row"><b>#EW-${order.order_number}</b><div><b>${esc(label)}</b><small>${esc(order.palworld_nickname || 'NickName não informado')}${palDetails ? `<br><span class="admin-order-detail">Escolhas do Pal: ${esc(palDetails)}</span>` : ''}</small></div><div><small>${new Date(order.created_at).toLocaleString('pt-BR')}</small></div><span class="admin-status">${esc(statusLabel(order.status))}</span></div>`;
             })
             .join('')
         : '<div class="admin-empty">Nenhuma atividade encontrada com este filtro.</div>'
