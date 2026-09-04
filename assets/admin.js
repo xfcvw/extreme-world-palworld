@@ -661,7 +661,7 @@ function enhanceRecentActivity(orders) {
         .join(' ');
       return (
         !query ||
-        normalize(`${order.order_number} ${order.palworld_nickname || ''} ${itemNames}`).includes(
+        normalize(`${order.order_number} ${order.palworld_nickname || ''} ${itemNames} ${palRequestSummary(order)}`).includes(
           query
         )
       );
@@ -680,7 +680,8 @@ function enhanceRecentActivity(orders) {
             .map((order) => {
               const items = order.order_items || [];
               const label = items.length ? items.map(purchaseLabel).join(' · ') : 'Pedido';
-              return `<div class="admin-order-row"><b>#EW-${order.order_number}</b><div><b>${esc(label)}</b><small>${esc(order.palworld_nickname || 'NickName não informado')}</small></div><div><small>${new Date(order.created_at).toLocaleString('pt-BR')}</small></div><span class="admin-status">${esc(statusLabel(order.status))}</span></div>`;
+              const palDetails = palRequestSummary(order);
+              return `<div class="admin-order-row"><b>#EW-${order.order_number}</b><div><b>${esc(label)}</b><small>${esc(order.palworld_nickname || 'NickName não informado')}${palDetails ? `<br><span class="admin-order-detail">Escolhas do Pal: ${esc(palDetails)}</span>` : ''}</small></div><div><small>${new Date(order.created_at).toLocaleString('pt-BR')}</small></div><span class="admin-status">${esc(statusLabel(order.status))}</span></div>`;
             })
             .join('')
         : '<div class="admin-empty">Nenhuma atividade encontrada com este filtro.</div>'
