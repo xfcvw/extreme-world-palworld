@@ -1,5 +1,6 @@
 import { SITE_ORIGIN, getSharedSession, supabase } from '/assets/auth.js';
 const root = document.querySelector('#admin-root');
+let deliveryRefreshTimer = null;
 const esc = (v) =>
   String(v ?? '').replace(
     /[&<>"']/g,
