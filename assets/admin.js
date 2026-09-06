@@ -101,6 +101,43 @@ const deliveryQuantity = (order) => {
   const quantity = itemQuantity((order?.order_items || [])[0]);
   return `Quantidade: ${coins(quantity)} ${quantity === 1 ? 'unidade' : 'unidades'}`;
 };
+const renderDeliveryQueue = (pending) =>
+  `<section id="deliveries" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">OPERAÇÃO</span><h3>Fila de entrega</h3><p class="admin-panel-note">Atualizada automaticamente a cada 15 segundos.</p></div><span class="admin-status">${pending.length} pendente${pending.length === 1 ? '' : 's'}</span></div>${pending.length ? `<div class="admin-table">${pending.map((order) => `<div class="admin-order-row"><b>#EW-${order.order_number}</b><div><b>${esc((order.order_items || [])[0]?.name_snapshot || 'Pedido')}</b><small>${esc(order.palworld_nickname || 'NickName não informado')} · Servidor ${order.server_number || '-'}<br>${esc(deliveryQuantity(order))}${palRequestSummary(order) ? `<br>${esc(palRequestSummary(order))}` : ''}</small></div><div><small>${new Date(order.created_at).toLocaleString('pt-BR')}</small></div><div class="admin-actions"><span class="admin-status">${esc(statusLabel(order.status))}</span>${order.status !== 'in_delivery' ? `<button class="secondary-btn admin-action-btn" data-delivery="${order.id}" data-status="in_delivery">Em entrega</button>` : ''}<button class="primary-btn admin-action-btn" data-delivery="${order.id}" data-status="delivered">Marcar entregue</button></div></div>`).join('')}</div>` : '<div class="admin-empty">Nenhum pedido aguardando entrega.</div>'}</section>`;
+
+const bindDeliveryActions = () => {
+  document.querySelectorAll('#deliveries [data-delivery]').forEach((button) => {
+    button.onclick = () => setDelivery(button.dataset.delivery, button.dataset.status);
+  });
+};
+
+async function refreshDeliveryQueue() {
+  if (document.hidden || !document.querySelector('#deliveries')) return;
+  const currentSession = await getSharedSession();
+  if (!currentSession) return;
+  const response = await fetch('/api/admin-role-assignment?resource=orders', {
+    headers: { Authorization: `Bearer ${currentSession.access_token}` },
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Não foi possível atualizar a fila de entrega.');
+  const { orders: latestOrders = [] } = await response.json();
+  const pending = latestOrders.filter((order) =>
+    ['awaiting_delivery', 'in_delivery', 'paid'].includes(order.status)
+  );
+  const section = document.querySelector('#deliveries');
+  if (!section) return;
+  section.outerHTML = renderDeliveryQueue(pending);
+  document.querySelector('#delivery-pending-count').textContent = String(pending.length);
+  bindDeliveryActions();
+}
+
+function startDeliveryAutoRefresh() {
+  if (deliveryRefreshTimer) clearInterval(deliveryRefreshTimer);
+  deliveryRefreshTimer = setInterval(() => {
+    refreshDeliveryQueue().catch((error) =>
+      console.warn('Não foi possível atualizar automaticamente a fila.', error)
+    );
+  }, 15000);
+}
 async function setDelivery(id, status) {
   const { error } = await supabase.rpc('staff_set_order_delivery_status', {
     p_order_id: id,
@@ -810,7 +847,7 @@ async function render() {
     <article class="admin-stat-card"><span>PEDIDOS REGISTRADOS</span><b>${orders?.length || 0}</b><small>Últimos 60 pedidos</small></article>
     <article class="admin-stat-card"><span>PLAYERS</span><b>${profiles?.length || 0}</b><small>Contas no portal</small></article>
     <article class="admin-stat-card"><span>CATÁLOGO</span><b>${storeProducts.length || 0}</b><small>Itens disponíveis na loja</small></article>
-    <article class="admin-stat-card"><span>ENTREGAS PENDENTES</span><b>${pending.length}</b><small>Exigem ação da equipe</small></article>
+    <article class="admin-stat-card"><span>ENTREGAS PENDENTES</span><b id="delivery-pending-count">${pending.length}</b><small>Exigem ação da equipe</small></article>
     ${profile.role === 'owner' ? `<article class="admin-stat-card owner-revenue-card"><span>FATURAMENTO CONFIRMADO</span><b>${money(revenue?.totalCents || 0)}</b><small>${Number(revenue?.approvedPayments || 0)} pagamento(s) aprovado(s) · ${Number(revenue?.payingCustomers || 0)} cliente(s)</small></article>` : ''}
     <section id="player-activity" class="admin-panel"><div class="admin-loading">Carregando atividade dos servidores...</div></section>
     <section id="buyers" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">CLIENTES E CARTEIRAS</span><h3>Compradores, MV e cargos</h3><p class="admin-panel-note">Owner pode definir cargos; Owner e Admin podem creditar ou retirar MV. Todas as alterações ficam registradas.</p></div><span class="admin-status">${profiles?.length || 0} contas</span></div><div class="activity-toolbar buyer-toolbar"><label>Buscar jogador ou cargo<input data-buyer-search placeholder="Nome, Discord, NickName ou cargo"></label><label>Cargo<select data-buyer-role><option value="all">Todos</option><option value="owner">Owner</option><option value="admin">Admin</option><option value="support">Suporte</option><option value="player">Cliente / Jogador</option></select></label></div><div class="buyer-admin-grid">${
@@ -829,7 +866,7 @@ async function render() {
         .join('') || '<div class="admin-empty">Nenhum jogador cadastrado ainda.</div>'
     }</div></section>
     <section id="catalog" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">CATÁLOGO</span><h3>Loja por Moedas da Vitória</h3><p class="admin-panel-note">Pals, armaduras, armas e recursos têm controles independentes. Pals usam preço e ativação separados para os níveis 80 e 255.</p></div><span class="admin-status">${storeProducts.length} itens</span></div>${['pals', 'armor', 'weapons', 'resources'].map((category) => renderCatalogCategory(category, storeProducts, canManage)).join('')}</section>
-    <section id="deliveries" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">OPERAÇÃO</span><h3>Fila de entrega</h3></div></div>${pending.length ? `<div class="admin-table">${pending.map((o) => `<div class="admin-order-row"><b>#EW-${o.order_number}</b><div><b>${esc((o.order_items || [])[0]?.name_snapshot || 'Pedido')}</b><small>${esc(o.palworld_nickname)} · Servidor ${o.server_number || '-'}<br>${esc(deliveryQuantity(o))}${palRequestSummary(o) ? `<br>${esc(palRequestSummary(o))}` : ''}</small></div><div><small>${new Date(o.created_at).toLocaleString('pt-BR')}</small></div><div class="admin-actions"><span class="admin-status">${esc(statusLabel(o.status))}</span>${o.status !== 'in_delivery' ? `<button class="secondary-btn admin-action-btn" data-delivery="${o.id}" data-status="in_delivery">Em entrega</button>` : ''}<button class="primary-btn admin-action-btn" data-delivery="${o.id}" data-status="delivered">Marcar entregue</button></div></div>`).join('')}</div>` : '<div class="admin-empty">Nenhum pedido aguardando entrega.</div>'}</section>
+    ${renderDeliveryQueue(pending)}
     <section id="tickets" class="admin-panel"><div class="profile-section-title"><div><span class="eyebrow cyan">ATENDIMENTO</span><h3>Tickets de suporte e compra</h3><p class="admin-panel-note">Apenas a equipe administrativa vê todos os chamados. Os jogadores veem somente os próprios tickets.</p></div><span id="admin-ticket-filter-count" class="admin-status">${ticketRows.length} tickets</span></div><div class="admin-ticket-filters"><label>Categoria<select id="ticket-category-filter"><option value="all">Todas</option><option value="support">Suporte</option><option value="purchase">Compra</option></select></label><label>Status<select id="ticket-status-filter"><option value="all">Todos</option><option value="open">Aberto</option><option value="in_progress">Em atendimento</option><option value="answered">Respondido</option><option value="closed">Fechado</option></select></label></div>${
       ticketRows.length
         ? `<div class="admin-ticket-list">${ticketRows
@@ -842,10 +879,9 @@ async function render() {
         : '<div class="admin-empty">Nenhum ticket criado ainda.</div>'
     }</section>
     <section id="recent-activity" class="admin-panel"><div class="admin-loading">Carregando atividade recente...</div></section>`;
-  document
-    .querySelectorAll('[data-delivery]')
-    .forEach((btn) => (btn.onclick = () => setDelivery(btn.dataset.delivery, btn.dataset.status)));
+  bindDeliveryActions();
   enhanceBuyerPagination();
+  startDeliveryAutoRefresh();
   document.querySelectorAll('[data-copy-account-id]').forEach((button) => {
     button.onclick = async () => {
       const accountId = button.dataset.copyAccountId;
