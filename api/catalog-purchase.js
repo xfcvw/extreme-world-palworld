@@ -59,8 +59,10 @@ export default async function handler(req, res) {
 
     const catalogKey = String(req.body?.catalogKey || '');
     const serverNumber = Number(req.body?.serverNumber || 0);
-    if (!catalogKey || ![1, 2].includes(serverNumber))
-      return json(res, 400, { error: 'Escolha um item e um servidor válidos.' });
+    if (!catalogKey || serverNumber !== 1)
+      return json(res, 400, {
+        error: 'O servidor com Wipe foi encerrado. As compras são entregues no Extreme World sem Wipe.',
+      });
 
     const [base, overrides] = await Promise.all([getBaseGameCatalog(), loadOverrides()]);
     const item = applyCatalogOverrides(base, overrides).find((row) => row.key === catalogKey);
@@ -71,10 +73,6 @@ export default async function handler(req, res) {
     if (item.category === 'pals') {
       if (![80, 255].includes(requestedLevel))
         return json(res, 400, { error: 'Escolha o nível 80 ou 255 para o Pal.' });
-      if (serverNumber === 2 && requestedLevel === 255)
-        return json(res, 400, {
-          error: 'No Extreme World com Wipe, Pals são entregues somente no nível 80.',
-        });
       if (item.metadata?.pal_levels_active?.[requestedLevel] === false)
         return json(res, 400, {
           error: `A opção de nível ${requestedLevel} está desativada para este Pal.`,
@@ -83,10 +81,7 @@ export default async function handler(req, res) {
       const victoryCoins = Number(priceByLevel[requestedLevel]);
       if (!Number.isFinite(victoryCoins) || victoryCoins < 1)
         return json(res, 500, { error: 'O preço desse Pal ainda não foi configurado.' });
-      const palPreferences = readPalPreferences(req.body?.palPreferences, {
-        allowPassives: serverNumber !== 2,
-      });
-      if (serverNumber === 2) palPreferences.passives_mode = 'random';
+      const palPreferences = readPalPreferences(req.body?.palPreferences);
       selectedItem = {
         ...item,
         name: `${item.name} — Nível ${requestedLevel}`,

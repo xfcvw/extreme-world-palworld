@@ -191,7 +191,7 @@ async function syncGameData(activeSession) {
     });
   }
   const results = await Promise.all(
-    [1, 2].map(async (number) => {
+    [1].map(async (number) => {
       try {
         const response = await fetch(`/api/palworld?server=${number}`, { cache: 'no-store' });
         return [number, await response.json()];
@@ -286,7 +286,7 @@ async function load() {
     form.nick.value = p?.palworld_nickname || '';
     form.nickServer1.value = p?.palworld_nickname_server_1 || '';
     form.nickServer2.value = p?.palworld_nickname_server_2 || '';
-    form.server.value = String(p?.default_server || 1);
+    form.server.value = '1';
     form.bio.value = p?.bio || '';
     form.onsubmit = async (e) => {
       e.preventDefault();
@@ -297,7 +297,7 @@ async function load() {
           palworld_nickname: String(f.get('nick')).trim(),
           palworld_nickname_server_1: String(f.get('nickServer1') || '').trim() || null,
           palworld_nickname_server_2: String(f.get('nickServer2') || '').trim() || null,
-          default_server: Number(f.get('server')),
+          default_server: 1,
           bio: String(f.get('bio') || '').trim(),
         })
         .eq('user_id', uid);

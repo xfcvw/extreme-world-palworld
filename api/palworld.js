@@ -384,8 +384,7 @@ async function currentPlayer(req, res) {
     );
   const { userId, profile } = account;
   const nickname = String(profile.palworld_nickname || '').trim();
-  const preferred = Number(profile.default_server) === 2 ? 2 : 1;
-  const numbers = [preferred, preferred === 1 ? 2 : 1];
+  const numbers = [1];
   const [savedBindings, results] = await Promise.all([
     readPlayerBindings(userId),
     Promise.all(numbers.map((number) => fetchServer(number, { withPlayers: true }))),
@@ -455,13 +454,11 @@ async function currentPlayer(req, res) {
       message:
         unavailable && linkedCount === 0
           ? 'Não foi possível sincronizar seus dados no momento. Tente novamente em instantes.'
-          : linkedCount === 2
-            ? 'Seus dois personagens estão vinculados. O portal mantém a última leitura mesmo quando você está offline.'
-            : linkedCount
-              ? 'Seu personagem foi vinculado em um servidor. Entre no outro servidor uma vez para criar o segundo vínculo.'
-              : nickname
-                ? 'Entre uma vez em cada servidor com o NickName configurado. Depois disso, não será necessário ficar online para vê-los aqui.'
-                : 'Cadastre seu NickName do Palworld para iniciar a vinculação.',
+          : linkedCount
+            ? 'Seu personagem está vinculado. O portal mantém a última leitura mesmo quando você está offline.'
+            : nickname
+              ? 'Entre uma vez no servidor com o NickName configurado para criar seu vínculo.'
+              : 'Cadastre seu NickName do Palworld para iniciar a vinculação.',
     },
     { privateResponse: true }
   );
@@ -529,7 +526,7 @@ async function automatedSync(req, res) {
     return json(res, 401, { error: 'Não autorizado.' }, { privateResponse: true });
   try {
     const results = await Promise.all(
-      [1, 2].map(async (server) => {
+      [1].map(async (server) => {
         try {
           return await syncKnownPlayers(server);
         } catch (error) {

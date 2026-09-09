@@ -298,7 +298,7 @@ export default async function handler(req, res) {
           coupon_code: null,
           coupon_id: null,
           palworld_nickname: profile.palworld_nickname,
-          server_number: Number(input.serverNumber) || profile.default_server || 1,
+          server_number: 1,
         }),
       })
     )?.[0];

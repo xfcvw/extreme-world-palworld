@@ -100,19 +100,7 @@
                   name="nickServer1"
                   maxlength="80"
                   placeholder="Mesmo NickName principal" /></label
-              ><label
-                >Nick no servidor com Wipe
-                <small>Opcional, use se for diferente do principal.</small
-                ><input
-                  name="nickServer2"
-                  maxlength="80"
-                  placeholder="Mesmo NickName principal" /></label
-              ><label
-                >Servidor principal<select name="server">
-                  <option value="1">Extreme World sem Wipe</option>
-                  <option value="2">Extreme World com Wipe</option>
-                </select></label
-              ><label
+              ><input name="nickServer2" type="hidden" /><input name="server" type="hidden" value="1" /><label
                 >Bio<textarea
                   name="bio"
                   maxlength="240"
@@ -154,12 +142,6 @@
             <article data-profile-server="1">
               <div>
                 <b>Extreme World sem Wipe</b><span data-profile-server-info>Consultando…</span>
-              </div>
-              <span class="status-dot pending-dot" data-profile-server-dot></span>
-            </article>
-            <article data-profile-server="2">
-              <div>
-                <b>Extreme World com Wipe</b><span data-profile-server-info>Consultando…</span>
               </div>
               <span class="status-dot pending-dot" data-profile-server-dot></span>
             </article>

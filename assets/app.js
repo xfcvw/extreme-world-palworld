@@ -57,7 +57,6 @@ const VIP_CATALOG = [
       '15 Moedas da Vitória',
       '30.000 de Ouro',
       '10.000 Moedas de Cachorro',
-      'Transferência de 5 packs de até 100 itens entre servidores (não válido para Pals)',
       '5% de desconto em compras acima de R$ 30',
     ],
   },
@@ -75,12 +74,8 @@ const VIP_CATALOG = [
       '20 Moedas da Vitória',
       '40.000 de Ouro',
       '20.000 Moedas de Cachorro',
-      'Transferência de até 10 packs de 500 itens e até 2 Pals comprados',
-      'Pals nível 255 entram como nível 80 no servidor Hard',
       '10% de desconto acima de R$ 50 e 1 cupom exclusivo de 50%',
       'Passe livre em eventos com Bilhete de Batalha',
-      'Loot da Torre Mortal Kombat pode ir para o servidor Hard',
-      'Pal prêmio do Boss Global pode ir para o servidor Hard no nível 80',
     ],
   },
 ];
@@ -225,7 +220,7 @@ function renderGameServerStatus(server, data) {
     title = card.querySelector('[data-server-title]');
   if (data?.online) {
     if (title)
-      title.textContent = server === 1 ? 'Extreme World sem Wipe' : 'Extreme World com Wipe';
+      title.textContent = 'Extreme World sem Wipe';
     status.textContent = 'Online';
     status.className = 'status-badge online';
     players.textContent =
@@ -249,7 +244,7 @@ function renderGameServerStatus(server, data) {
 }
 async function loadGameServerStatus() {
   const results = await Promise.all(
-    [1, 2].map(async (server) => {
+    [1].map(async (server) => {
       try {
         const response = await fetch(`/api/palworld?server=${server}`, { cache: 'no-store' });
         return [server, await response.json()];
@@ -451,7 +446,7 @@ function openShopPurchase(item) {
     ? `<div class="coin-stepper" aria-label="Quantidade de ${esc(item.name)}"><button type="button" data-resource-change="-${resourcePackSize}" aria-label="Diminuir um pacote">−</button><output data-resource-quantity>${coins(resourcePackSize)} unidades</output><button type="button" data-resource-change="${resourcePackSize}" aria-label="Aumentar um pacote">+</button></div><small>${coins(item.victoryCoins)} MV por pacote de ${coins(resourcePackSize)} unidades.</small>`
     : '';
   modal(
-    `<span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>${esc(item.name)}</h2><p>${isEquipment ? 'Escolha a qualidade.' : isResource ? `Escolha a quantidade em pacotes de ${coins(resourcePackSize)}; o total será calculado pelo número de pacotes.` : 'Serão descontadas ' + `<b>${coins(item.victoryCoins)} Moedas da Vitória</b>.`} O pedido entra na fila para entrega manual de um ADM.</p><form id="shop-buy" class="form"><label>Servidor<select name="server"><option value="1" ${profile.default_server === 1 ? 'selected' : ''}>Extreme World sem Wipe</option><option value="2" ${profile.default_server === 2 ? 'selected' : ''}>Extreme World com Wipe</option></select></label>${tierControl}${resourceControl}<button class="full-btn"></button></form>`
+    `<span class="eyebrow blue">MOEDAS DA VITÓRIA</span><h2>${esc(item.name)}</h2><p>${isEquipment ? 'Escolha a qualidade.' : isResource ? `Escolha a quantidade em pacotes de ${coins(resourcePackSize)}; o total será calculado pelo número de pacotes.` : 'Serão descontadas ' + `<b>${coins(item.victoryCoins)} Moedas da Vitória</b>.`} O pedido entra na fila para entrega manual de um ADM.</p><form id="shop-buy" class="form"><select name="server" hidden aria-hidden="true" tabindex="-1"><option value="1">Extreme World sem Wipe</option></select>${tierControl}${resourceControl}<button class="full-btn"></button></form>`
   );
   const form = $('#shop-buy'),
     button = form.querySelector('.full-btn'),
@@ -526,7 +521,7 @@ function openCatalogPalPurchase(item) {
   const priceFor = (level) => Number(prices[level] || 0);
   const defaultServer = profile?.default_server === 2 ? 2 : 1;
   modal(
-    `<span class="eyebrow blue">COMPRAR PAL</span><h2>${esc(item.name)}</h2><p>Classe <b>${esc(item.metadata?.pal_class || 'D')}</b>. Confira o nível e o valor antes de confirmar: a entrega é manual por um ADM após o desconto da carteira.</p><form id="catalog-pal-buy" class="form"><label>Servidor<select name="server"><option value="1" ${defaultServer === 1 ? 'selected' : ''}>Extreme World sem Wipe</option><option value="2" ${defaultServer === 2 ? 'selected' : ''}>Extreme World com Wipe</option></select></label><label>Nível<select name="level"><option value="80" data-level-active="${levelsActive[80] !== false}">Nível 80 — ${coins(priceFor(80))} MV</option><option value="255" data-level-active="${levelsActive[255] !== false}">Nível 255 — ${coins(priceFor(255))} MV</option></select><small id="pal-level-note"></small></label><fieldset class="pal-request-fields"><legend>Preferências para entrega</legend><label>Sexo desejado<select name="desiredGender"><option value="any">Sem preferência</option><option value="female">Fêmea</option><option value="male">Macho</option></select></label><label data-pal-passives-field>Passivas desejadas<textarea name="desiredPassives" maxlength="400" placeholder="Ex.: Corredor, Lenda, Ferocidade..."></textarea></label><small data-pal-passives-random hidden>No servidor Com Wipe, as passivas do Pal são aleatórias e não podem ser escolhidas.</small><label>Outras observações<textarea name="deliveryNotes" maxlength="500" placeholder="Descreva aqui qualquer outro detalhe importante para a entrega."></textarea></label><small>Os pedidos dependem da disponibilidade e serão analisados pela equipe.</small></fieldset><button class="full-btn" type="submit"></button></form>`
+    `<span class="eyebrow blue">COMPRAR PAL</span><h2>${esc(item.name)}</h2><p>Classe <b>${esc(item.metadata?.pal_class || 'D')}</b>. Confira o nível e o valor antes de confirmar: a entrega é manual por um ADM após o desconto da carteira.</p><form id="catalog-pal-buy" class="form"><select name="server" hidden aria-hidden="true" tabindex="-1"><option value="1">Extreme World sem Wipe</option></select><label>Nível<select name="level"><option value="80" data-level-active="${levelsActive[80] !== false}">Nível 80 — ${coins(priceFor(80))} MV</option><option value="255" data-level-active="${levelsActive[255] !== false}">Nível 255 — ${coins(priceFor(255))} MV</option></select><small id="pal-level-note"></small></label><fieldset class="pal-request-fields"><legend>Preferências para entrega</legend><label>Sexo desejado<select name="desiredGender"><option value="any">Sem preferência</option><option value="female">Fêmea</option><option value="male">Macho</option></select></label><label data-pal-passives-field>Passivas desejadas<textarea name="desiredPassives" maxlength="400" placeholder="Ex.: Corredor, Lenda, Ferocidade..."></textarea></label><small data-pal-passives-random hidden>No servidor Com Wipe, as passivas do Pal são aleatórias e não podem ser escolhidas.</small><label>Outras observações<textarea name="deliveryNotes" maxlength="500" placeholder="Descreva aqui qualquer outro detalhe importante para a entrega."></textarea></label><small>Os pedidos dependem da disponibilidade e serão analisados pela equipe.</small></fieldset><button class="full-btn" type="submit"></button></form>`
   );
   const form = $('#catalog-pal-buy'),
     serverSelect = form.querySelector('[name="server"]'),
@@ -572,7 +567,7 @@ function openCatalogPalPurchase(item) {
         palLevel = Number(values.get('level'));
       const palPreferences = {
         desiredGender: values.get('desiredGender'),
-        desiredPassives: serverNumber === 2 ? '' : values.get('desiredPassives'),
+        desiredPassives: values.get('desiredPassives'),
         deliveryNotes: values.get('deliveryNotes'),
       };
       const response = await fetch('/api/catalog-purchase', {
@@ -938,7 +933,7 @@ function renderAuth() {
 }
 function openOnboarding() {
   modal(
-    `<span class="eyebrow blue">PRIMEIRO ACESSO</span><h2>Vincule seu player</h2><p>Seu Discord já está conectado. Falta só o NickName usado dentro do Palworld.</p><form id="onboarding" class="form"><label>NickName no Palworld<input name="nick" required maxlength="80" value="${esc(profile?.palworld_nickname || '')}" placeholder="Ex.: ExtremePlayer"></label><label>Servidor principal<select name="server"><option value="1">Extreme World sem Wipe</option><option value="2" ${profile?.default_server === 2 ? 'selected' : ''}>Extreme World com Wipe</option></select></label><button class="full-btn">Salvar perfil</button></form>`
+    `<span class="eyebrow blue">PRIMEIRO ACESSO</span><h2>Vincule seu player</h2><p>Seu Discord já está conectado. Falta só o NickName usado dentro do Palworld.</p><form id="onboarding" class="form"><label>NickName no Palworld<input name="nick" required maxlength="80" value="${esc(profile?.palworld_nickname || '')}" placeholder="Ex.: ExtremePlayer"></label><input type="hidden" name="server" value="1"><button class="full-btn">Salvar perfil</button></form>`
   );
   $('#onboarding').onsubmit = async (e) => {
     e.preventDefault();
