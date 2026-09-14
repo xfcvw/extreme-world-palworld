@@ -968,8 +968,23 @@ supabase.auth.onAuthStateChange((_event, nextSession) =>
 );
 
 (async () => {
-  session = await getSharedSession();
-  await Promise.all([loadCatalog(), loadGameServerStatus()]);
+  // O catálogo é público e não pode depender da restauração da sessão. Em
+  // navegadores sem login (ou com o armazenamento bloqueado), ele aparece
+  // normalmente enquanto a autenticação é resolvida em segundo plano.
+  const sessionPromise = getSharedSession();
+  await Promise.all([
+    loadCatalog().catch((error) => {
+      console.error('Falha ao montar catálogo público:', error);
+      shopProducts = [];
+      pals = [];
+      renderShop();
+      renderPals();
+    }),
+    loadGameServerStatus().catch((error) =>
+      console.info('Status do servidor indisponível:', error.message)
+    ),
+  ]);
+  session = await sessionPromise;
   if (session) await loadAccount();
   else renderAuth();
   setInterval(loadGameServerStatus, 45000);
