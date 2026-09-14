@@ -38,9 +38,21 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' });
   try {
     if (String(req.query?.public || '') === '1') {
-      const catalog = await loadPublicStoreCatalog();
+      // Visitantes podem consultar todo o catálogo. A validação de sessão e
+      // saldo continua exclusivamente nas rotas que criam pedidos/checkout.
+      const [storeCatalog, base, overrides] = await Promise.all([
+        loadPublicStoreCatalog(),
+        getBaseGameCatalog(),
+        loadOverrides(),
+      ]);
+      const catalog = applyCatalogOverrides(base, overrides);
       res.setHeader('Cache-Control', 'no-store, max-age=0');
-      return json(res, 200, catalog);
+      return json(res, 200, {
+        ...storeCatalog,
+        items: catalog,
+        summary: catalogSummary(catalog),
+        updatedAt: new Date().toISOString(),
+      });
     }
     const [base, overrides] = await Promise.all([getBaseGameCatalog(), loadOverrides()]);
     const includeInactive = String(req.query?.includeInactive || '') === '1';

@@ -144,25 +144,22 @@ function requireDiscordForPurchase() {
 }
 
 async function loadCatalog() {
-  const [publicCatalog, gameCatalog] = await Promise.all([
-    fetch('/api/game-catalog?public=1', { cache: 'no-store' })
-      .then(async (response) =>
-        response.ok ? response.json() : Promise.reject(new Error('public catalog unavailable'))
-      )
-      .catch((error) => {
-        console.error('Falha ao carregar catálogo público:', error);
-        return null;
-      }),
-    fetch('/api/game-catalog', { cache: 'no-store' })
-      .then(async (response) =>
-        response.ok ? response.json() : Promise.reject(new Error('catalog unavailable'))
-      )
-      .catch(() => null),
-  ]);
+  // Uma única resposta pública contém os produtos de pagamento e os itens do
+  // jogo. Assim, visitantes não dependem de uma sessão Discord para navegar.
+  const publicCatalog = await fetch('/api/game-catalog?public=1', { cache: 'no-store' })
+    .then(async (response) =>
+      response.ok ? response.json() : Promise.reject(new Error('public catalog unavailable'))
+    )
+    .catch((error) => {
+      console.error('Falha ao carregar catálogo público:', error);
+      return null;
+    });
+
   const vips = publicCatalog?.vips || [],
     benefits = publicCatalog?.benefits || [];
   products = publicCatalog?.products || [];
-  shopProducts = gameCatalog?.items || [];
+  shopProducts = publicCatalog?.items || [];
+
   renderVips(vips, benefits, products);
   renderPackages(
     products.filter(
@@ -171,6 +168,7 @@ async function loadCatalog() {
   );
   renderCoins(products.filter((p) => p.product_type === 'currency'));
   renderShop();
+
   pals = shopProducts
     .filter((item) => shopCategory(item) === 'pals')
     .map((item) => ({
