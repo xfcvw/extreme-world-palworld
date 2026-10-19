@@ -1,22 +1,48 @@
 # Extreme World Palworld
 
-Projeto independente da loja Extreme World.
+Plataforma web de comércio digital e gestão para a comunidade privada **Extreme World Palworld**.
 
-## Estrutura
-- `index.html`: loja pública + login Discord + carteira + Pals
-- `admin.html`: painel de equipe
-- `api/checkout.js`: cria preferência Mercado Pago
-- `api/webhook.js`: valida webhook Mercado Pago e credita moedas / cria fila de entrega
+O projeto reúne uma loja pública, autenticação com Discord, carteira virtual, pagamentos via Mercado Pago e recursos operacionais para a equipe administrar pedidos e entregas.
 
-## Variáveis na Vercel
-Use `.env.example` como referência. Nunca publique `SUPABASE_SERVICE_ROLE_KEY`, `MERCADO_PAGO_ACCESS_TOKEN` ou `MERCADO_PAGO_WEBHOOK_SECRET` no frontend.
+## Visão do projeto
 
-## Supabase
-Projeto: `Extreme World Palworld`
-Ref: `mujvmfkoeaklefwlwbnk`
+O objetivo é centralizar a jornada do jogador: visualizar produtos, entrar com a conta Discord, concluir a compra e acompanhar o processamento da entrega — enquanto a equipe utiliza um painel interno para operar a plataforma.
 
-## Discord
-O provider Discord deve estar habilitado no Supabase e a aplicação Discord deve conter a callback:
-`https://mujvmfkoeaklefwlwbnk.supabase.co/auth/v1/callback`
+## Principais recursos
 
-Após definir o domínio da Vercel, adicione o domínio em Authentication > URL Configuration > Redirect URLs.
+- Catálogo público de produtos voltados à comunidade Palworld
+- Autenticação e vinculação de usuários via Discord
+- Carteira virtual para gerenciamento de moedas do servidor
+- Checkout integrado ao Mercado Pago
+- Webhook para validar pagamentos, creditar moedas e iniciar a fila de entrega
+- Painel administrativo para a equipe gerenciar a operação
+
+## Tecnologias
+
+- **Frontend:** HTML, CSS e JavaScript
+- **Backend:** funções serverless na Vercel
+- **Banco de dados e autenticação:** Supabase
+- **Integrações:** Discord OAuth e Mercado Pago
+
+## Estrutura do repositório
+
+| Caminho | Responsabilidade |
+| --- | --- |
+| `index.html` | Loja pública, login Discord, carteira e catálogo |
+| `admin.html` | Painel de operação da equipe |
+| `api/checkout.js` | Criação de preferências de pagamento no Mercado Pago |
+| `api/webhook.js` | Validação do pagamento, crédito de moedas e criação da fila de entrega |
+
+## Configuração
+
+Use o arquivo `.env.example` como referência para configurar as variáveis de ambiente na Vercel.
+
+> Chaves de serviço, tokens de pagamento e segredos de webhook nunca devem ser expostos no frontend ou versionados no repositório.
+
+## Integração com Discord
+
+O provedor Discord deve estar habilitado no Supabase. Após configurar o domínio da aplicação, inclua-o nas URLs de redirecionamento da autenticação.
+
+---
+
+Projeto desenvolvido para integrar experiência do jogador, pagamentos e operação de uma comunidade de games em uma única plataforma.
